@@ -1,9 +1,0 @@
-# Initial candidate stack; install and record exact versions after validation.
-# Add other dependencies only when justified by the real challenge.
-pandas
-numpy
-scikit-learn
-scipy
-plotly
-streamlit
-joblib
