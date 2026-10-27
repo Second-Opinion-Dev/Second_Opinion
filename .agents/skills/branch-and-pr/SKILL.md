@@ -28,8 +28,8 @@ One person, one item, one branch, one PR into `main`. Never commit directly to `
 - Small commits with imperative messages that say what and why (`Add rolling MAD baseline`).
 - Pull `main` into the branch (`git fetch origin && git merge origin/main`) before opening the PR
   and resolve conflicts locally.
-- Do not commit secrets, `.env`, virtualenvs or generated `artifacts/` / `reports/`
-  (git-ignored). `data/` is tracked; do not rewrite or delete raw files.
+- Do not commit secrets, the partner API key, `.env`, virtualenvs, `data/` or generated
+  `artifacts/` / `reports/` (all git-ignored). Do not rewrite or delete raw files in `data/`.
 
 ## Finishing: open the PR
 
