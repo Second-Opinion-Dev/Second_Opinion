@@ -33,6 +33,6 @@ a working core for an unfinished fancy feature. For each feature ask: *would thi
 water professional make a better decision?*
 
 ## Data safety
-Data is shared with teammates by committing `data/` to this (private) repo; that is the only
-sanctioned place. Otherwise work locally: no uploading data or sending raw contents to external
-APIs/services without explicit user authorisation. Do not expose sensitive identifiers in docs, logs or screenshots.
+Partner data is for the hackathon only. `data/` is git-ignored: never commit or share the data
+or the API key; each teammate downloads their own copy. Work locally: no uploading data or sending
+raw contents to external APIs/services without explicit user authorisation. Do not expose sensitive identifiers in docs, logs or screenshots.

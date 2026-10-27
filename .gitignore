@@ -1,4 +1,6 @@
-# Hackathon data is tracked on purpose so all teammates can see it.
+# Partner data is for the hackathon only: never commit it (see partner briefing).
+# Each teammate downloads their own copy.
+data/
 # Generated outputs stay local.
 artifacts/
 reports/

@@ -27,8 +27,9 @@ Work on a branch named `<name>-<work>` and open a PR into `main` when done. Foll
    create them from `.agents/templates/`.
 3. Follow the relevant skill for the current stage; don't skip ahead to modelling.
 4. Never fabricate data properties, metrics, labels or physical causes.
-5. `data/` is committed so teammates can see it. Beyond that, work locally: never upload data
-   or send raw contents to external services without explicit user authorisation.
+5. `data/` is git-ignored: partner rules forbid committing or sharing the data and the API key.
+   Never commit them. Work locally: never upload data or send raw contents to external
+   services without explicit user authorisation.
 
 ## Environment
 
