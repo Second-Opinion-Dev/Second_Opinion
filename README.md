@@ -43,7 +43,9 @@ created as we need them.
 - Open a PR into `main` when the item is done; a teammate reviews and merges. No direct commits
   to `main`. Details: `.agents/skills/branch-and-pr/SKILL.md`.
 - `data/` is git-ignored: partner rules forbid committing or sharing the data (and the API key),
-  so each teammate downloads their own copy. Never edit raw files in place, and delete the data
+  so each teammate downloads their own copy: copy `data/.env.example` to `data/.env`, add the key
+  from the briefing, then run `python3 data/download.py [agv|tai|vle ...]` (no argument = all).
+  Never edit raw files in place, and delete the data
   after the event unless the partner agrees otherwise in writing.
 - Log consequential choices in `DECISIONS.md` so we don't re-try rejected ideas.
 
