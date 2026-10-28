@@ -17,6 +17,12 @@ if getattr(results, "_dashboard_mtime", None) != results_mtime or not all(hasatt
     importlib.reload(results)
     results._dashboard_mtime = results_mtime
 from results import METRICS, DEMO_METRICS, DEMO_PLANT, demo_metric, evidence, filtered_cases, load_metric, notifications, source_fingerprint
+import measurement_table
+table_mtime = Path(measurement_table.__file__).stat().st_mtime_ns
+if getattr(measurement_table, "_dashboard_mtime", None) != table_mtime:
+    importlib.invalidate_caches()
+    importlib.reload(measurement_table)
+    measurement_table._dashboard_mtime = table_mtime
 from measurement_table import scored_measurement_table
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -202,7 +208,7 @@ def plot_point(frame, point, start, end, case=None):
         for column in context_columns:
             value = case.get(column)
             data = data.loc[data[column].isna() if pd.isna(value) else data[column].eq(value).fillna(False)]
-    elif len(data[context_columns].fillna("").drop_duplicates()) > 1:
+    elif len(data[context_columns].astype("string").fillna("").drop_duplicates()) > 1:
         st.info(tr("contexts")); return
     units = data.Unit.dropna().unique()
     if data.empty or len(units) != 1:
