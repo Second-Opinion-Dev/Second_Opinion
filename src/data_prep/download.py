@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Download the hackathon partner data into this folder (stdlib only).
+"""Download the hackathon partner data into the repository's data/ folder (stdlib only).
 
-    python3 data/download.py                 # everything (agv, tai, vle)
-    python3 data/download.py agv             # one dataset
-    python3 data/download.py agv vle         # several
-    python3 data/download.py --list          # show what would be downloaded
-    python3 data/download.py tai --force     # re-download even if present
+    python3 src/data_prep/download.py                 # everything (agv, tai, vle)
+    python3 src/data_prep/download.py agv             # one dataset
+    python3 src/data_prep/download.py agv vle         # several
+    python3 src/data_prep/download.py --list          # show what would be downloaded
+    python3 src/data_prep/download.py tai --force     # re-download even if present
 
 The AGV/TAI API key is read from AISO_API_KEY in the environment or in data/.env
 (see data/.env.example). Partner data is for the hackathon only: never commit it or the key.
@@ -19,7 +19,8 @@ import tarfile
 import urllib.request
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Data, .env and .env.example live in the repository's data/ folder, outside src/.
+HERE = Path(__file__).resolve().parents[2] / "data"
 
 BASE = "https://aiso-water-data.vercel.app"
 VLE_BASE = "https://sp02.aveiro.vle.global"

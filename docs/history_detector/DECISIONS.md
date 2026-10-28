@@ -22,7 +22,7 @@ for history features; keep incomplete and ambiguous rows unscored. Train through
 2023, calibrate on 2024, and hold out 2025. The default 99th-percentile validation
 threshold and 10-reading daily budget are configurable assumptions, not verified
 false-alarm costs. The baseline remains independently runnable, and no peer
-comparison is used. See `../isolation_forest/HANDOFF.md` for run commands,
+comparison is used. See `../docs/isolation_forest/HANDOFF.md` for run commands,
 comparison definitions, results location and limitations. Do not claim an
 improvement or operational accuracy without expert-reviewed outcomes.
 

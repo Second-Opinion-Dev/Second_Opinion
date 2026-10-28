@@ -2,7 +2,7 @@
 """Score selected TAI measurements against their own prior daily history.
 
 This is a provisional, history-only baseline. It does not infer causes, diagnose
-faults, compare plants, or establish accuracy. Read history_detector/HANDOFF.md.
+faults, compare plants, or establish accuracy. Read docs/history_detector/HANDOFF.md.
 """
 
 import argparse

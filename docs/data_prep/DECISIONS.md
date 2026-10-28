@@ -14,4 +14,4 @@ Use the final `idea.md` as project context; Oindrilla prepares the data and expe
 
 ## Incomplete checks
 
-Confirm installation key relationships with TAI, review the full-data join-cardinality reports, obtain semantic definitions, and agree on a modelling slice and any quarantine rules with the team and TAI. See `data/tai_work/HANDOFF.md` for script limitations and execution commands.
+Confirm installation key relationships with TAI, review the full-data join-cardinality reports, obtain semantic definitions, and agree on a modelling slice and any quarantine rules with the team and TAI. See `docs/data_prep/HANDOFF.md` for script limitations and execution commands.

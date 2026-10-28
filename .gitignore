@@ -1,28 +1,7 @@
 # Partner data is for the hackathon only: never commit it (see partner briefing).
 # Each teammate downloads their own copy.
+# Code lives in src/, tests in tests/ and documentation in docs/; data/ holds data only.
 data/*
-!data/download.py
-# Only the reviewed TAI code and documentation are tracked; datasets and outputs stay ignored.
-!data/tai_work/
-data/tai_work/*
-!data/tai_work/scripts/
-data/tai_work/scripts/*
-!data/tai_work/scripts/tai_candidate_slice.py
-!data/tai_work/scripts/tai_installation_report.py
-!data/tai_work/scripts/tai_metadata_report.py
-!data/tai_work/scripts/tai_pipeline.py
-!data/tai_work/scripts/tai_redownload.py
-!data/tai_work/scripts/tai_review_candidates.py
-!data/tai_work/scripts/tai_sequence_report.py
-!data/tai_work/scripts/tai_verify.py
-!data/tai_work/tests/
-data/tai_work/tests/*
-!data/tai_work/tests/test_tai_pipeline.py
-!data/tai_work/DATA_AUDIT.md
-!data/tai_work/DECISIONS.md
-!data/tai_work/HANDOFF.md
-!data/tai_work/QUESTIONS.md
-!data/tai_work/WORK_LOG.md
 # Generated outputs stay local.
 artifacts/
 reports/

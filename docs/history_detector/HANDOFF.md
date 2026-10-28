@@ -19,8 +19,8 @@ Delete partner data after the event unless the partner agrees otherwise in writi
 
 ## Inputs and selection
 
-`history_detector/history_detector.py` consumes a completed full output from
-`data/tai_work/scripts/tai_pipeline.py`: `summary.json`, `point_metadata.csv.gz` and
+`src/history_detector/history_detector.py` consumes a completed full output from
+`src/data_prep/tai_pipeline.py`: `summary.json`, `point_metadata.csv.gz` and
 `cleaned/MeasurementValues/*.csv.gz`. It rejects partial pipeline output, blank
 or repeated metadata point IDs, unmatched source-file provenance and unit
 mismatches. It checks the metadata selection, but metadata meanings and the
@@ -105,10 +105,10 @@ data in a **new, empty, private, Git-ignored** location. On this machine the
 download is under `data/tai/extracted`:
 
 ```bash
-python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
-python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
-python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
-python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
+python3 src/data_prep/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
+python3 src/history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+python3 src/history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
+python3 src/history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
 ```
 
 If prepared data already exists, reuse it and skip the first command. Do not
@@ -146,7 +146,7 @@ their own private data outputs or receive them through an authorised channel.
 
 ## Artificial-fault comparison
 
-`history_detector/synthetic_faults.py` copies a seeded sample of series, writes
+`src/history_detector/synthetic_faults.py` copies a seeded sample of series, writes
 one artificial fault into each copy during the held-out year (2025), and scores
 the same copy with three variants: `legacy` (original settings: no floor, no
 clipping, no rules, fixed 3.5), `revised` (current defaults) and
@@ -157,8 +157,8 @@ is measured in the 60 days before 2025. It also reports the review workload on
 unmodified 2025 data. These are synthetic results, not real-world accuracy.
 
 ```bash
-python3 history_detector/synthetic_faults.py --prepared data/tai/prepared_history --output data/tai/faults_influent --measurement influent_volume --sample 100
-python3 -B -m unittest -v history_detector.test_history_detector
+python3 src/history_detector/synthetic_faults.py --prepared data/tai/prepared_history --output data/tai/faults_influent --measurement influent_volume --sample 100
+python3 -B -m unittest discover -s tests -t . -v
 ```
 
 ## Smoke run after the logic fixes — 28 October 2026
@@ -198,13 +198,13 @@ Run the full comparison before reporting final figures.
 ## Next teammate: testing, baseline comparison and results
 
 An experimental Isolation Forest layer and focused artificial-fixture checks
-have since been added. See `isolation_forest/HANDOFF.md` for its chronological
+have since been added. See `docs/isolation_forest/HANDOFF.md` for its chronological
 comparison and outstanding evaluation; the historical execution log above
 describes the original baseline implementation, before those checks. Items 2,
 3 and 5 below are now partly covered by `test_history_detector.py`, calibrated
 thresholds and `synthetic_faults.py`; expert review (item 6) is still open.
 
-1. Read `idea.md`, `data/tai_work/DATA_AUDIT.md`, `data/tai_work/HANDOFF.md`, and this document.
+1. Read `idea.md`, `docs/data_prep/DATA_AUDIT.md`, `docs/data_prep/HANDOFF.md`, and this document.
    Confirm input meaning, time availability, duplicate rules and relevant
    operational points with TAI. Determine whether real validation limits or
    labelled incidents exist; do not assume they do.

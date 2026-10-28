@@ -8,11 +8,11 @@ output is complete and nothing it depends on has changed: its script, its
 arguments and every upstream stage are fingerprinted in a state file. Existing
 outputs are never deleted; an output that must be redone is moved aside first.
 
-    python3 pipeline.py --plan                 # show what would run or be skipped
-    python3 pipeline.py                        # run everything that is not done
-    python3 pipeline.py --smoke 30             # quick run on 30 points per group
-    python3 pipeline.py --groups influent_volume --with-faults
-    python3 pipeline.py --force detect         # redo all detector stages and downstream
+    python3 src/pipeline.py --plan                 # show what would run or be skipped
+    python3 src/pipeline.py                        # run everything that is not done
+    python3 src/pipeline.py --smoke 30             # quick run on 30 points per group
+    python3 src/pipeline.py --groups influent_volume --with-faults
+    python3 src/pipeline.py --force detect         # redo all detector stages and downstream
 
 Outputs and logs are private partner-derived data under data/tai/; keep them out of Git.
 """
@@ -28,15 +28,16 @@ import sys
 import time
 from typing import Callable
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / 'src'
 DATA = ROOT / 'data' / 'tai'
 SCRIPTS = {
-    'download': ROOT / 'data' / 'download.py',
-    'prepare': ROOT / 'data' / 'tai_work' / 'scripts' / 'tai_pipeline.py',
-    'verify': ROOT / 'data' / 'tai_work' / 'scripts' / 'tai_verify.py',
-    'detect': ROOT / 'history_detector' / 'history_detector.py',
-    'forest': ROOT / 'isolation_forest' / 'model.py',
-    'faults': ROOT / 'history_detector' / 'synthetic_faults.py',
+    'download': SRC / 'data_prep' / 'download.py',
+    'prepare': SRC / 'data_prep' / 'tai_pipeline.py',
+    'verify': SRC / 'data_prep' / 'tai_verify.py',
+    'detect': SRC / 'history_detector' / 'history_detector.py',
+    'forest': SRC / 'isolation_forest' / 'model.py',
+    'faults': SRC / 'history_detector' / 'synthetic_faults.py',
 }
 GROUPS = ('influent_volume', 'oxygen', 'ammonium')
 TABLES = ('Installations', 'MeasurementPoints', 'MeasurementValues')

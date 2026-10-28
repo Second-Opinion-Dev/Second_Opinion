@@ -8,7 +8,7 @@ would want to keep developing.
 ## Status
 
 **Hackathon data available.** The team is working on the TAI Second Opinion proposal; see
-`idea.md`, `data/tai_work/DATA_AUDIT.md`, and `data/tai_work/HANDOFF.md` for current evidence and limitations.
+`idea.md`, `docs/data_prep/DATA_AUDIT.md`, and `docs/data_prep/HANDOFF.md` for current evidence and limitations.
 
 | | |
 | --- | --- |
@@ -22,12 +22,17 @@ would want to keep developing.
 ## Repository layout
 
 ```text
-data/                         Downloaded partner data (ignored by Git)
-data/tai_work/scripts/        TAI download, preparation and analysis scripts
-data/tai_work/tests/          Focused automated checks
-data/tai_work/                TAI audit, decisions, handoff, questions and work log
-history_detector/             Provisional history-only anomaly detector, its decisions and handoff
-src/                          Other reusable code as the project grows
+src/
+  pipeline.py                 Runs the whole pipeline, skipping completed stages
+  data_prep/                  Data download, TAI preparation, verification and reports
+  history_detector/           History-only detector and synthetic-fault comparison
+  isolation_forest/           Experimental Isolation Forest layer
+tests/                        Automated checks for every stage and the driver
+docs/
+  data_prep/                  TAI audit, decisions, handoff, questions and work log
+  history_detector/           Detector decisions and handoff
+  isolation_forest/           Isolation Forest handoff
+data/                         Downloaded partner data and outputs only (ignored by Git)
 app/, notebooks/              Demo and exploration, when needed
 artifacts/, reports/          Generated outputs (git-ignored)
 AGENTS.md                     Instructions for AI coding agents
@@ -35,20 +40,20 @@ AGENTS.md                     Instructions for AI coding agents
 requirements.txt              Python dependencies
 ```
 
-For TAI setup, commands and private output locations, see `data/tai_work/HANDOFF.md`.
+For TAI setup, commands and private output locations, see `docs/data_prep/HANDOFF.md`.
 
 ## Working as a team
 
 - One person, one item, one branch: `<name>-<work>` (e.g. `joshua-setup-fixes`).
 - Open a PR into `main` when the item is done; a teammate reviews and merges. No direct commits
   to `main`. Details: `.agents/skills/branch-and-pr/SKILL.md`.
-- Partner data in `data/` is git-ignored; only explicitly listed TAI code and docs are tracked.
+- Partner data in `data/` is git-ignored; code, tests and docs live in `src/`, `tests/` and `docs/`.
   Partner rules forbid committing or sharing the data and API key,
   so each teammate downloads their own copy: copy `data/.env.example` to `data/.env`, add the key
-  from the briefing, then run `python3 data/download.py [agv|tai|vle ...]` (no argument = all).
+  from the briefing, then run `python3 src/data_prep/download.py [agv|tai|vle ...]` (no argument = all).
   Never edit raw files in place, and delete the data
   after the event unless the partner agrees otherwise in writing.
-- Log consequential choices in `data/tai_work/DECISIONS.md` so we don't re-try rejected ideas.
+- Log consequential choices in `docs/data_prep/DECISIONS.md` so we don't re-try rejected ideas.
 
 ## Working with AI agents
 
@@ -76,16 +81,16 @@ auto-discover the skills: `mkdir -p .claude && ln -s ../.agents/skills .claude/s
 
 ## Run the whole pipeline
 
-`pipeline.py` runs every stage as a separate process through its existing script:
+`src/pipeline.py` runs every stage as a separate process through its existing script:
 download → prepare → verify → detector → Isolation Forest, per measurement group, with
 the synthetic-fault comparison optional. It skips stages that are already done:
 
 ```bash
-python3 pipeline.py --plan                        # show what would run or be skipped
-python3 pipeline.py                               # run everything not yet done
-python3 pipeline.py --smoke 30                    # quick run on 30 points per group
-python3 pipeline.py --with-faults                 # also run the slow fault comparison
-python3 pipeline.py --groups oxygen --force detect  # redo detector and forest for oxygen
+python3 src/pipeline.py --plan                        # show what would run or be skipped
+python3 src/pipeline.py                               # run everything not yet done
+python3 src/pipeline.py --smoke 30                    # quick run on 30 points per group
+python3 src/pipeline.py --with-faults                 # also run the slow fault comparison
+python3 src/pipeline.py --groups oxygen --force detect  # redo detector and forest for oxygen
 ```
 
 A stage is skipped when its output is complete and its script, arguments and upstream
@@ -94,20 +99,20 @@ download or preparation made before the driver existed is adopted as done. Outpu
 `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`), with one log per stage in `logs/`.
 Nothing is deleted: an output that must be redone is renamed `<name>.old-<timestamp>`
 first. The download stage needs `AISO_API_KEY` (see `data/.env.example`). All outputs are
-private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest test_pipeline`.
+private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest discover -s tests -t .`.
 
 ## Provisional TAI history detector
 
-`history_detector/history_detector.py` implements a history-only rolling median/MAD
+`src/history_detector/history_detector.py` implements a history-only rolling median/MAD
 detector for separate exploratory influent-volume, oxygen and ammonium slices.
 It has not been validated against real labels or operator review. Read
-`history_detector/HANDOFF.md` for selection, setup, commands and limitations.
+`docs/history_detector/HANDOFF.md` for selection, setup, commands and limitations.
 
 ## Experimental Isolation Forest
 
-`isolation_forest/model.py` uses prior-history features to rank eligible readings.
+`src/isolation_forest/model.py` uses prior-history features to rank eligible readings.
 Run a separate forest for each selected slice; it retains the history baseline
 and does not use peer comparisons. The model is
 experimental; no labelled real-world accuracy is established. See
-`isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
+`docs/isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
 private artifact handling.

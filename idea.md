@@ -57,7 +57,7 @@ The detector does not compare other plants or conclude what caused the change.
 
 ## Implemented methodology
 
-The implementation is `history_detector/history_detector.py`. It is a statistical,
+The implementation is `src/history_detector/history_detector.py`. It is a statistical,
 history-based baseline; it does not train a neural network or supervised
 classifier. Its threshold and performance are not validated.
 
@@ -80,7 +80,7 @@ Each run selects one exploratory group, all labelled `scada`:
 The additional groups cover only these exact metadata combinations, not every
 oxygen or ammonium point. TAI has not confirmed what the readings represent,
 their reporting period, units or operational comparability. Do not extrapolate
-to all plants or measurement types. See `history_detector/HANDOFF.md`.
+to all plants or measurement types. See `docs/history_detector/HANDOFF.md`.
 
 ### 2. Keep each history separate
 
@@ -149,17 +149,17 @@ flag means **unscored**, not normal. The data and scores stay local and out of G
 
 ## Running the detector
 
-The simplest route is `python3 pipeline.py`, which runs download, preparation,
+The simplest route is `python3 src/pipeline.py`, which runs download, preparation,
 verification, the detector and the forest for each group, skipping stages that are
 already done; see the README. To run the stages by hand, use a local TAI download
 and the required Python packages, from the project root. Both output directories
 must be new or empty and must remain private:
 
 ```bash
-python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
-python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
-python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
-python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
+python3 src/data_prep/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
+python3 src/history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+python3 src/history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
+python3 src/history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
 ```
 
 Reuse a completed preparation directory instead of rerunning the first command.
@@ -170,11 +170,11 @@ settings include `--window-days`, `--minimum-history`, `--target-flag-rate`,
 `history_scores.csv.gz`, `cases.csv.gz` and a `run_info.json` completion marker
 with configuration, chosen thresholds, package versions and counts. If the marker is absent, treat the
 output as incomplete. Paths differ for teammates; see
-`history_detector/HANDOFF.md` for setup, output fields and limitations.
+`docs/history_detector/HANDOFF.md` for setup, output fields and limitations.
 
 ## Experimental AI layer
 
-`isolation_forest/model.py` ranks eligible records using signed deviation from
+`src/isolation_forest/model.py` ranks eligible records using signed deviation from
 the historical median, one-day change, the mean deviation over the previous
 seven days, the level relative to the median, whether the value is zero, and how
 many days the value has repeated. No feature depends on the detector's alert
@@ -204,7 +204,7 @@ for each measurement group, because each plant has its own operator. It is not a
 shared operator budget across the three groups. The budget ranking
 can include readings below the fixed alert threshold. Counts and overlap do not
 establish which method is more useful; real labels or expert review are needed.
-See `isolation_forest/HANDOFF.md` for commands, private outputs and limitations.
+See `docs/isolation_forest/HANDOFF.md` for commands, private outputs and limitations.
 
 ## Testing, baseline comparison and results — next teammate
 
@@ -230,7 +230,7 @@ accurate or useful. The next teammate should:
    unflagged cases and record useful / not useful / unsure. Measure review time
    or label assumptions clearly; do not claim savings from assumptions alone.
 
-See `history_detector/HANDOFF.md` and the existing baseline and validation skills
+See `docs/history_detector/HANDOFF.md` and the existing baseline and validation skills
 for the detailed handoff. Do not claim precision, recall, false-alarm reduction,
 operational savings or causes without adequate evidence. Peer comparison is not
 part of this implementation or its proposed baseline evaluation.
@@ -258,9 +258,9 @@ weather and a measurement does not establish a cause, treatment outcome or cost.
 
 ## Rules for agents
 
-- Follow `AGENTS.md` and the staged playbooks. Read `data/tai_work/DATA_AUDIT.md`,
-  `data/tai_work/DECISIONS.md`, `data/tai_work/HANDOFF.md`, `history_detector/DECISIONS.md` and
-  `history_detector/HANDOFF.md`.
+- Follow `AGENTS.md` and the staged playbooks. Read `docs/data_prep/DATA_AUDIT.md`,
+  `docs/data_prep/DECISIONS.md`, `docs/data_prep/HANDOFF.md`, `docs/history_detector/DECISIONS.md` and
+  `docs/history_detector/HANDOFF.md`.
 - Inspect data and confirm meanings; never invent labels, operating limits,
   performance, confidence or physical causes.
 - Preserve raw inputs and provenance. Keep reusable logic outside the app and

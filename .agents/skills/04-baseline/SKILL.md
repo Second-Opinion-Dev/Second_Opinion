@@ -14,4 +14,4 @@ median+MAD, seasonal-naive residuals, Isolation Forest, simple regression/classi
   descriptive; proxies (stability, recovery of clearly marked synthetic perturbations of held-out
   data, expert review) must never be called accuracy.
 - Save config, predictions and metrics to a results location (create it now, git-ignored).
-- Log the result and run command in `data/tai_work/DECISIONS.md`. Keep this baseline as the comparison anchor.
+- Log the result and run command in `docs/data_prep/DECISIONS.md`. Keep this baseline as the comparison anchor.
