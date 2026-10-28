@@ -15,7 +15,7 @@ would want to keep developing.
 | Challenge | Investigate unusual wastewater measurements |
 | Organisation | TAI / Z-info |
 | Problem statement | Help operators prioritise suspicious measurements for validation |
-| Approach | History, eligible peer context and an investigation queue; see `idea.md` |
+| Approach | History-based baseline and experimental Isolation Forest; investigation queue proposed; see `idea.md` |
 | Results | TBD (recorded numbers only) |
 | Demo | TBD |
 
@@ -82,3 +82,11 @@ Exact run commands (training, evaluation, app) will be added here as they exist.
 detector for an exploratory measurement slice. It has not been evaluated or
 calibrated. Read `history_detector/HANDOFF.md` for the private-data setup, run
 commands, limitations and testing/baseline-comparison handoff.
+
+## Experimental Isolation Forest
+
+`isolation_forest/model.py` uses prior-history features to rank eligible readings.
+It retains the history baseline and does not use peer comparisons. The model is
+experimental; no labelled real-world accuracy is established. See
+`isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
+private artifact handling.

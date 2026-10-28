@@ -3,10 +3,12 @@
 **Tagline:** Spot unusual measurements, understand the evidence, and decide what
 to check first.
 
-**Status:** A provisional history-only detector has been implemented and run on
-local historical data. It has **not been tested, evaluated or calibrated**.
-The proposed dashboard and review queue are not yet implemented. Peer comparison
-is not used in the detector or the current project scope.
+**Status:** A provisional history-only detector and an experimental Isolation
+Forest layer have been implemented and run on local historical data. Focused
+implementation tests and a descriptive held-out ranking comparison have been
+run; neither method has been validated against real incident labels or operator
+review. The proposed dashboard and review queue are not yet implemented. Peer
+comparison is not used in the detector or the current project scope.
 
 ## The challenge
 
@@ -139,11 +141,38 @@ configuration, package versions and counts. If the marker is absent, treat the
 output as incomplete. Paths differ for teammates; see
 `history_detector/HANDOFF.md` for setup, output fields and limitations.
 
+## Experimental AI layer
+
+`isolation_forest/model.py` ranks eligible records using signed deviation from
+the historical median, one-day change relative to historical spread, and the
+fraction of recent prior days flagged by the history detector. Each feature uses
+only the same point's current or earlier observations. Raw identifiers are not
+model features; peer comparisons are not used. Ineligible records remain
+unscored with a reason. The existing statistical detector runs independently.
+
+The first two features divide their deviation or change by `1.4826 ×` the
+prior MAD, then apply a signed `log1p` transform to reduce extreme scales. The
+change requires a valid scored reading on the previous calendar day. The prior
+flag fraction uses at least three scored readings in the previous seven days;
+the current day is excluded. Points with missing, ambiguous or unsuitable
+history stay unscored rather than being filled with normal-looking values.
+
+The forest is trained through 2023 with a fixed seed. Its provisional threshold
+is the 99th percentile of 2024 validation scores; 2025 is held out. A higher AI
+score means a less common combination of features, not a fault probability.
+Separately, a retrospective comparison ranks the same eligible readings for each
+method with an example budget of 10 readings per day. The budget ranking can
+include readings below the fixed alert threshold. Counts and overlap do not
+establish which method is more useful; real labels or expert review are needed.
+See `isolation_forest/HANDOFF.md` for commands, private outputs and limitations.
+
 ## Testing, baseline comparison and results — next teammate
 
-No tests, peer comparison, baseline benchmark or model evaluation have been
-performed for this detector. The successful local run establishes only that it
-executed, not that its flags are accurate or useful. The next teammate should:
+Focused artificial-fixture tests cover important history and AI edge cases, and
+the two methods have been compared descriptively at a shared review budget. No
+peer comparison, expert review, real-world accuracy or false-alarm evaluation
+has been performed. A successful local run does not establish that flags are
+accurate or useful. The next teammate should:
 
 1. Confirm the slice, units, duplicate handling, data availability and important
    operating measurements with TAI; ask about review time and incident labels.
@@ -168,7 +197,8 @@ part of this implementation or its proposed baseline evaluation.
 
 ## Scope and demo
 
-**Implemented:** a provisional history-only detector and private row-level output.
+**Implemented:** a provisional history-only detector, an experimental Isolation
+Forest layer and private row-level output.
 
 **Next priorities:** confirm the measurement semantics; test and calibrate the
 baseline; build an understandable case view and review queue, showing deferred
