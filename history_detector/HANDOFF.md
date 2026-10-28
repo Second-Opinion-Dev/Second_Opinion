@@ -3,11 +3,15 @@
 ## Status and scope
 
 This is a provisional history-only baseline for the TAI / Z-info challenge. It
-has no peer comparison, real-time integration, diagnosis, operator dashboard,
-evaluation results or calibrated threshold. The user requested implementation
-without performing the testing and baseline-comparison work; that work is for the
-next teammate. No anomaly performance, false-alarm rate or savings have been
-established. A flag is an investigation candidate, not a confirmed problem.
+has no peer comparison, real-time integration, diagnosis or operator dashboard.
+Its thresholds are calibrated to an assumed workload, not to verified outcomes.
+Artificial-fault comparisons exist (see `synthetic_faults.py`), but no real-world
+anomaly performance, false-alarm rate or savings have been established. A flag
+is an investigation candidate, not a confirmed problem.
+
+Team decisions (28 October 2026): plants are not compared with each other,
+because plants differ geographically and in timing; and each plant has its own
+operator, so review budgets and rankings are per plant.
 
 The partner briefing restricts data and keys to hackathon use. Keep all raw data,
 prepared files, row-level scores, reports and credentials local and out of Git.
@@ -22,12 +26,21 @@ or repeated metadata point IDs, unmatched source-file provenance and unit
 mismatches. It checks the metadata selection, but metadata meanings and the
 literal installation join remain unconfirmed by TAI.
 
-The exploratory filter is case-insensitive for description and input type:
-`ProductDescription = Influent`, `QuantityDescription = Volume`,
-`ParameterDescription = Niet van toepassing`, `Unit = m3`, `InputType = scada`.
-This is not an expert-approved incoming-flow dataset. Do not generalise its
-results to other measurements, units or input types; confirm with TAI that this
-selection measures what the team thinks it does.
+The `--measurement` option selects one exploratory metadata group per run.
+Descriptions and input types are compared case-insensitively; units are matched
+exactly and never converted. The default `influent_volume` preserves the original
+selection:
+
+| Group | Product | Quantity | Parameter | Unit | Input | State |
+| --- | --- | --- | --- | --- | --- | --- |
+| `influent_volume` | Influent | Volume | Niet van toepassing | m3 | scada | Any, as in the original selection |
+| `oxygen` | Actief slib | (massa)Concentratie | zuurstof | mg/l | scada | niet van toepassing |
+| `ammonium` | Actief slib | (massa)Concentratie | ammonium | mg/l | scada | uitgedrukt in Stikstof |
+
+The new groups are deliberately narrower than all oxygen and ammonium points,
+which also have other products, units, input types and expression bases. None is
+an expert-approved measurement definition. Confirm with TAI what each measures,
+its operational importance and reporting period before making claims.
 
 ## Algorithm and decisions
 
@@ -39,21 +52,49 @@ selection measures what the team thinks it does.
 - Sort by date and use only valid, unambiguous observations in the calendar
   interval `[day - 28 days, day)`. Default minimum history is 14 distinct days.
   Both defaults are configurable. The current reading is never in its baseline.
-- Calculate the median of the window, its median absolute deviation (MAD), and
-  `abs(value - median) / (1.4826 * MAD)`. A score of at least **3.5** is flagged
-  by default. This threshold is provisional, not calibrated or validated.
-- Append each valid, unambiguous observation to future windows, even when it was
-  flagged. This permits adaptation but can also mask sustained changes. Do not
-  interpret the score as probability, risk severity or a diagnosis.
-- All repeated rows for the same series and calendar date are left unscored and
-  excluded from later history, even if values match. Original records remain
-  intact. Rows with missing/non-finite values, invalid dates, or any non-false
-  preparation flag are also unscored and excluded from history. Installation
-  flags are provisional literal-key checks, not confirmed errors.
-- If fewer than the minimum valid days exist, or MAD is zero, return an unscored
-  status. There is no imputation, arbitrary epsilon, flatline diagnosis, or
-  automatic unit conversion. Zero and negative values are not automatically
-  invalidated. Each row carries a status and explanation.
+- Calculate the median of the window, its median absolute deviation (MAD) and a
+  spread `max(1.4826 * MAD, 0.05 * |median|)`. The floor stops tiny absolute
+  changes on small or quiet meters from producing extreme scores. The score is
+  `abs(value - median) / spread`, with a direction (`above` / `below`).
+- **Thresholds are calibrated per meter, not fixed.** By default, each series
+  gets its own above and below thresholds, chosen on its own scored readings up
+  to 2023-12-31 so that about 1% of them are flagged, half in each direction.
+  Heavy upward tails (for example wet-weather influent) therefore get a higher
+  threshold than drops, and erratic meters cannot set the bar for calm ones.
+  Thresholds are never below 2.0. Series with fewer than 100 scored calibration
+  readings use the median of the other series' thresholds. The 1% is a workload
+  assumption, not a prevalence. `thresholds.csv` lists every series' values;
+  `--threshold X` uses one fixed value for all series instead.
+- **Clipped history.** Each valid observation enters later windows clipped to
+  `median ± 3.5 × spread`. The reported value is never changed. A sustained fault
+  therefore takes longer to become the new normal; a genuine permanent change is
+  also accepted more slowly. `--clip-limit 0` restores unclipped history.
+- **Data-quality rules**, independent of the threshold, mark each eligible row:
+  `rule_stuck` (the same value on at least 7 consecutive days after a window that
+  varied), `rule_dropout` (a zero after a full window without zeros) and
+  `rule_negative` (a negative value; all current groups are non-negative
+  quantities). A meter that is constantly zero is not "stuck". Rules apply even
+  when the score is unavailable. `--no-rules` disables them.
+- `review_flag` combines the statistical flag and the rules; `flag_reason` lists
+  `stuck`, `dropout`, `negative`, `unusual_high` and `unusual_low`.
+- **Cases.** Review-flagged days of one series form one case when separated by
+  at most one unflagged or missing day (`--case-gap-days`). `cases.csv.gz` has
+  one row per case with start, end, flagged days, peak score and reasons. Cases
+  are ranked within each plant: rule hits first, then more flagged days, then
+  higher peak score (`plant_rank`). This is a documented review order, not a
+  probability or severity; rank a date-filtered subset with `rank_cases`.
+- Rows with two or more otherwise-valid observations for the same series and
+  calendar date are left unscored and excluded from later history, even if values
+  match. A blank or quality-flagged row on the same date does not make a valid
+  row ambiguous. Original records remain intact. Rows with missing/non-finite
+  values, invalid dates, or any non-false preparation flag are unscored and
+  excluded from history. Installation flags are provisional literal-key checks.
+- If fewer than the minimum valid days exist, return `unscored_insufficient_history`;
+  if the spread is zero (constant zero history), return `unscored_zero_spread`.
+  There is no imputation or automatic unit conversion. Zero and negative values
+  are not invalidated; the rules only mark them for review. Each row carries a
+  status and explanation. Do not interpret any score as a probability, risk
+  severity or diagnosis.
 - Daily dates do not prove when values were available to an operator. This is
   retrospective scoring, not a demonstrated live or intraday alert system.
 
@@ -66,6 +107,8 @@ download is under `data/tai/extracted`:
 ```bash
 python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
 python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
 ```
 
 If prepared data already exists, reuse it and skip the first command. Do not
@@ -73,11 +116,18 @@ overwrite existing outputs: use a new empty output path for each run. The full
 preparation pass needs substantial time and disk for `working.sqlite` and
 compressed files. Other teammates should substitute their local private paths.
 
-Optional flags: `--window-days 28 --minimum-history 14 --threshold 3.5`. `run_info.json`
-records settings, package versions, the source preparation summary and counts.
+Optional flags: `--measurement influent_volume|oxygen|ammonium`, `--window-days 28`,
+`--minimum-history 14`, `--scale-floor-fraction 0.05`, `--clip-limit 3.5`,
+`--stuck-days 7`, `--no-rules`, `--calibration-end 2023-12-31`,
+`--target-flag-rate 0.01`, `--threshold X` (fixed, skips calibration),
+`--case-gap-days 1` and `--max-points N` (smoke run on the first N selected
+points only; `run_info.json` is then marked `smoke_run_partial`). `run_info.json` records the exact selection, settings,
+chosen thresholds, package versions, the source preparation summary and counts.
 `history_scores.csv.gz` includes original dates, values, units, source file/row,
 process and selected-point descriptions, preparation flags, history days, median,
-MAD, score, nullable flag, direction, status and explanation. If `run_info.json` is absent, the run did not finish;
+MAD, spread, score, direction, repeat days, rule columns, nullable statistical
+and review flags, flag reason, status, explanation and case id. `cases.csv.gz`
+holds one row per case. If `run_info.json` is absent, the run did not finish;
 do not treat partial output as complete. The program does not modify prepared or
 raw input data. Results are local and contain sensitive identifiers.
 `history_days` is blank for observations rejected before a history window is
@@ -94,12 +144,65 @@ peer comparison, benchmark or model evaluation were performed for this task.
 Both output directories are local and Git-ignored; other teammates must generate
 their own private data outputs or receive them through an authorised channel.
 
+## Artificial-fault comparison
+
+`history_detector/synthetic_faults.py` copies a seeded sample of series, writes
+one artificial fault into each copy during the held-out year (2025), and scores
+the same copy with three variants: `legacy` (original settings: no floor, no
+clipping, no rules, fixed 3.5), `revised` (current defaults) and
+`revised_no_clip`. Calibrated thresholds are frozen on unmodified data up to
+2023. Faults: a one-day spike of 6 robust spreads, a three-day dropout to zero,
+a ten-day stuck value and a 28-day drift reaching 4 robust spreads. The spread
+is measured in the 60 days before 2025. It also reports the review workload on
+unmodified 2025 data. These are synthetic results, not real-world accuracy.
+
+```bash
+python3 history_detector/synthetic_faults.py --prepared data/tai/prepared_history --output data/tai/faults_influent --measurement influent_volume --sample 100
+python3 -B -m unittest -v history_detector.test_history_detector
+```
+
+## Smoke run after the logic fixes — 28 October 2026
+
+Only a **smoke run** was performed: the first 30 selected points of each group
+(`--max-points 30`), not the full data. All three detector groups, all three
+forests and the influent fault comparison (27 series) completed in about three
+minutes; 28 unit tests passed. Python 3.11, pandas 3.1.0, NumPy 2.4.6,
+scikit-learn 1.9.1. Partial, provisional numbers:
+
+| Group (30 points) | Readings marked for review | Cases | Stuck | Dropout |
+| --- | --- | --- | --- | --- |
+| Influent volume | 1.26% | 310 | 188 | 12 |
+| Oxygen | 1.23% | 309 | 138 | 12 |
+| Ammonium | 1.74% | 335 | 230 | 24 |
+
+Influent fault comparison on unmodified 2025 data: legacy marked 11.35% of
+readings (17.5 cases per meter-year); revised marked 1.58% (3.4 cases per
+meter-year). On artificial faults in copies of 2025 data, detected / injected:
+
+| Fault | Legacy | Revised |
+| --- | --- | --- |
+| Stuck 10 days | 5/27 | 24/27 |
+| Dropout 3 days | 22/25 | 25/25 |
+| Spike of 6 spreads | 23/24 | 9/24 |
+| Drift to 4 spreads | 22/24 | 4/24 |
+
+The revised settings catch stuck and dropout faults far better at about a
+seventh of the workload, but miss most moderate influent spikes and drifts.
+Many influent meters routinely jump by tens of spreads (median per-meter upward
+threshold about 34), so such faults look like ordinary variation without extra
+context such as rainfall. Legacy detected them largely because it flagged 11% of
+all readings. Clipping made no measurable difference in this sample. The target
+rate trades workload against sensitivity and should be chosen with operators.
+Run the full comparison before reporting final figures.
+
 ## Next teammate: testing, baseline comparison and results
 
 An experimental Isolation Forest layer and focused artificial-fixture checks
 have since been added. See `isolation_forest/HANDOFF.md` for its chronological
 comparison and outstanding evaluation; the historical execution log above
-describes the original baseline implementation, before those checks.
+describes the original baseline implementation, before those checks. Items 2,
+3 and 5 below are now partly covered by `test_history_detector.py`, calibrated
+thresholds and `synthetic_faults.py`; expert review (item 6) is still open.
 
 1. Read `idea.md`, `data/tai_work/DATA_AUDIT.md`, `data/tai_work/HANDOFF.md`, and this document.
    Confirm input meaning, time availability, duplicate rules and relevant

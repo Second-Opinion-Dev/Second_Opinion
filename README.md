@@ -79,14 +79,15 @@ Exact run commands (training, evaluation, app) will be added here as they exist.
 ## Provisional TAI history detector
 
 `history_detector/history_detector.py` implements a history-only rolling median/MAD
-detector for an exploratory measurement slice. It has not been evaluated or
-calibrated. Read `history_detector/HANDOFF.md` for the private-data setup, run
-commands, limitations and testing/baseline-comparison handoff.
+detector for separate exploratory influent-volume, oxygen and ammonium slices.
+It has not been validated against real labels or operator review. Read
+`history_detector/HANDOFF.md` for selection, setup, commands and limitations.
 
 ## Experimental Isolation Forest
 
 `isolation_forest/model.py` uses prior-history features to rank eligible readings.
-It retains the history baseline and does not use peer comparisons. The model is
+Run a separate forest for each selected slice; it retains the history baseline
+and does not use peer comparisons. The model is
 experimental; no labelled real-world accuracy is established. See
 `isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
 private artifact handling.

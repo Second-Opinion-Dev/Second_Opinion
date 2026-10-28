@@ -39,6 +39,10 @@ Second Opinion compares a reading with the recent history of the **same
 measurement point and process context**. It reports how the reading differs from
 its typical recent value and why it was flagged or could not be scored.
 
+The team decided not to compare plants with each other: plants differ
+geographically and in timing. Each plant has its own operator, so review
+budgets and rankings are per plant.
+
 A later operator interface could turn these observations into an investigation
 queue. It could group consecutive flags, let an operator specify a review budget,
 and show both selected and deferred cases. This interface is a proposal, not a
@@ -65,17 +69,18 @@ The preparation preserves raw fields, source file and row, parsed values and
 quality flags. The detector requires unique, nonblank point IDs, matching source
 files and matching point/value units; it refuses partial preparation output.
 
-The initial exploratory slice uses these literal metadata fields:
+Each run selects one exploratory group, all labelled `scada`:
 
-- `ProductDescription`: `Influent`
-- `QuantityDescription`: `Volume`
-- `ParameterDescription`: `Niet van toepassing`
-- `Unit`: `m3`
-- `InputType`: `scada`
+| Group | Product | Quantity | Parameter | Unit | State |
+| --- | --- | --- | --- | --- | --- |
+| `influent_volume` (default) | Influent | Volume | Niet van toepassing | m3 | Any |
+| `oxygen` | Actief slib | (massa)Concentratie | zuurstof | mg/l | niet van toepassing |
+| `ammonium` | Actief slib | (massa)Concentratie | ammonium | mg/l | uitgedrukt in Stikstof |
 
-TAI has not yet confirmed that these points are comparable incoming-flow
-measurements, or what their reporting period and input type mean. Do not
-extrapolate this selection to all plants or measurement types.
+The additional groups cover only these exact metadata combinations, not every
+oxygen or ammonium point. TAI has not confirmed what the readings represent,
+their reporting period, units or operational comparability. Do not extrapolate
+to all plants or measurement types. See `history_detector/HANDOFF.md`.
 
 ### 2. Keep each history separate
 
@@ -91,37 +96,56 @@ For a reading on day `t`:
 1. Select eligible observations from **`[t - 28 days, t)`**: the preceding 28
    calendar days, excluding the current day. Require at least **14 valid days**.
 2. Calculate their **median**, the middle value in the recent history.
-3. Calculate **MAD**, the median of the absolute deviations from that median.
-   This gives a robust measure of the historical spread.
-4. Calculate the absolute deviation score:
+3. Calculate **MAD**, the median of the absolute deviations from that median,
+   and the spread `max(1.4826 × MAD, 5% of |median|)`. The floor stops tiny
+   changes on small or quiet meters from producing extreme scores.
+4. Calculate the deviation score and its direction (above or below):
 
    ```text
-   score = |current value - historical median| / (1.4826 × MAD)
+   score = |current value - historical median| / spread
    ```
 
-5. Flag scores **greater than or equal to 3.5**. The window, minimum history and
-   threshold can be configured. The 3.5 threshold is an uncalibrated starting
-   value, not a probability, a measured risk level or an approved operating limit.
+5. Flag scores at or above a **calibrated threshold**, chosen for each meter
+   separately for readings above and below the median, on that meter's own data
+   up to 2023, so that about 1% of its readings would be flagged. The 1% is an
+   assumed workload, not a probability, a measured risk level or an approved
+   operating limit.
 
 The window only uses prior records, preventing the current or future readings
-from entering their own baseline. Valid prior flagged readings remain in later
-windows; this allows adaptation but can mask a sustained change. Real-world
-availability times for the date-only export still need confirmation from TAI.
+from entering their own baseline. Valid prior readings enter later windows
+clipped to `median ± 3.5 × spread`, so a sustained fault does not quickly
+become the new normal; a genuine permanent change is also accepted more slowly.
+Real-world availability times for the date-only export still need confirmation
+from TAI.
 
-### 4. Preserve uncertainty and provenance
+Simple **data-quality rules** run alongside the score: a value repeated for 7
+or more days on a meter that previously varied (stuck), a zero after a window
+without zeros (dropout), and a negative volume or concentration. A reading is
+marked for review when the score or a rule fires.
+
+### 4. Group into cases and rank per plant
+
+Flagged days of one series form one **case** when separated by at most one
+unflagged day. Each plant has its own operator, so cases are ranked within each
+plant: rule hits first, then longer cases, then higher peak score. The ranking
+is a documented review order, not a probability or severity.
+
+### 5. Preserve uncertainty and provenance
 
 A record is **unscored**, with a reason, when its date or value is invalid,
-its preparation flags require review, there are multiple rows for that series
-and calendar day, there is insufficient valid history, or the historical MAD is
-zero. Same-day duplicates and other ineligible records are also excluded from
-later history; the source records remain intact. The detector does not silently
-average conflicting records, fill missing values or convert units. Zero and
-negative values are not automatically treated as invalid.
+its preparation flags require review, there are multiple valid rows for that
+series and calendar day, there is insufficient valid history, or the history is
+constantly zero. Same-day duplicates and other ineligible records are also
+excluded from later history; the source records remain intact. The detector does
+not silently average conflicting records, fill missing values or convert units.
+Zero and negative values are not treated as invalid; the rules only mark them
+for review.
 
 Output includes the original date, value and unit; installation, point and
-process context; source file and row; quality flags; historical count, median
-and MAD; score; nullable flag; direction; status; and explanation. A blank flag
-means **unscored**, not normal. The data and scores stay local and out of Git.
+process context; source file and row; quality flags; historical count, median,
+MAD and spread; score; direction; rule columns; statistical and review flags;
+reasons; status; explanation; and case id, plus a separate case table. A blank
+flag means **unscored**, not normal. The data and scores stay local and out of Git.
 
 ## Running the detector
 
@@ -131,38 +155,51 @@ root. Both output directories must be new or empty and must remain private:
 ```bash
 python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
 python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
 ```
 
 Reuse a completed preparation directory instead of rerunning the first command.
 For another scoring run choose a new output directory. Optional detector
-settings are `--window-days`, `--minimum-history` and `--threshold`. The output
-contains `history_scores.csv.gz` and a `run_info.json` completion marker with
-configuration, package versions and counts. If the marker is absent, treat the
+settings include `--window-days`, `--minimum-history`, `--target-flag-rate`,
+`--scale-floor-fraction`, `--clip-limit`, `--stuck-days` and `--threshold`
+(a fixed value instead of calibration). The output contains
+`history_scores.csv.gz`, `cases.csv.gz` and a `run_info.json` completion marker
+with configuration, chosen thresholds, package versions and counts. If the marker is absent, treat the
 output as incomplete. Paths differ for teammates; see
 `history_detector/HANDOFF.md` for setup, output fields and limitations.
 
 ## Experimental AI layer
 
 `isolation_forest/model.py` ranks eligible records using signed deviation from
-the historical median, one-day change relative to historical spread, and the
-fraction of recent prior days flagged by the history detector. Each feature uses
-only the same point's current or earlier observations. Raw identifiers are not
-model features; peer comparisons are not used. Ineligible records remain
-unscored with a reason. The existing statistical detector runs independently.
+the historical median, one-day change, the mean deviation over the previous
+seven days, the level relative to the median, whether the value is zero, and how
+many days the value has repeated. No feature depends on the detector's alert
+threshold. Each feature uses only the same point's current or earlier
+observations. Raw identifiers are not model features; peer comparisons are not
+used. Ineligible records remain unscored with a reason. The existing statistical
+detector runs independently.
 
-The first two features divide their deviation or change by `1.4826 ×` the
-prior MAD, then apply a signed `log1p` transform to reduce extreme scales. The
+Deviation, change and relative level are divided by the detector's floored
+spread, then given a signed `log1p` transform to reduce extreme scales. The
 change requires a valid scored reading on the previous calendar day. The prior
-flag fraction uses at least three scored readings in the previous seven days;
+mean deviation uses at least three scored readings in the previous seven days;
 the current day is excluded. Points with missing, ambiguous or unsuitable
 history stay unscored rather than being filled with normal-looking values.
 
-The forest is trained through 2023 with a fixed seed. Its provisional threshold
+Train a separate forest for each measurement group; each pools normalised
+features across that group's points, while their historical features remain
+point-specific. There is no peer comparison. Do not compare raw scores from
+separately fitted forests as if they were calibrated on one scale.
+
+Each forest is trained through 2023 with a fixed seed. Its provisional threshold
 is the 99th percentile of 2024 validation scores; 2025 is held out. A higher AI
 score means a less common combination of features, not a fault probability.
 Separately, a retrospective comparison ranks the same eligible readings for each
-method with an example budget of 10 readings per day. The budget ranking can
-include readings below the fixed alert threshold. Counts and overlap do not
+method with an example budget of one reading **per plant per day**, separately
+for each measurement group, because each plant has its own operator. It is not a
+shared operator budget across the three groups. The budget ranking
+can include readings below the fixed alert threshold. Counts and overlap do not
 establish which method is more useful; real labels or expert review are needed.
 See `isolation_forest/HANDOFF.md` for commands, private outputs and limitations.
 
