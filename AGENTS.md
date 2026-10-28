@@ -8,9 +8,9 @@ Read by Codex, Claude Code and other coding agents. Everything lives at the repo
 
 ## Status
 
-**Pre-hackathon.** The challenge, data and questions are unknown until 28 Oct 2026.
-Do not create models, synthetic data, assumed schemas or a pretend demo. Do not create
-project folders (`data/`, `src/`, `app/` ...) until the real materials arrive.
+**Hackathon data available.** The team has received TAI data and the challenge; see
+`idea.md` and `DATA_AUDIT.md`. Inspect actual materials before implementing, and do
+not invent schemas, labels, results or a pretend demo.
 
 ## Where things are
 
@@ -37,6 +37,5 @@ Work on a branch named `<name>-<work>` and open a PR into `main` when done. Foll
 
 ## Environment
 
-The user works in **WSL (Linux shell)**. Use POSIX paths and `python3`; create a venv
-with `python3 -m venv .venv && source .venv/bin/activate`. Prefer running from the
-Linux filesystem (e.g. `~/aiso_hackathon`); `/mnt/d/...` is slow for many small files.
+The current workspace uses Windows PowerShell and Python; `TAI_HANDOFF.md` records
+the commands used here. WSL can also be used with appropriate paths and `python3`.

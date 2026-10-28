@@ -14,7 +14,9 @@ python tai_redownload.py --output '../tai-redownload' --previous-manifest '../ha
 python tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
 python tai_sequence_report.py '../tai-analysis/pipeline-redownload'
 python tai_metadata_report.py '../tai-analysis/pipeline-redownload'
+python tai_installation_report.py '../tai-analysis/pipeline-redownload'
 python tai_candidate_slice.py '../tai-analysis/pipeline-redownload'
+python tai_review_candidates.py '../tai-analysis/pipeline-redownload'
 ```
 
 The downloader requires a new output directory and verifies archive size, official SHA-256 when supplied, extracted sizes, gzip integrity and SHA-256 hashes. It compares the archive hash to the earlier manifest if provided. A changed hash needs investigation, not an automatic corruption conclusion. Do not run it until the key is set. It does not overwrite an existing download.
@@ -33,6 +35,10 @@ The metadata report identifies point IDs with missing, unique or multiple metada
 
 The optional candidate script copies records whose point metadata literally says `Influent` and `Volume` into `exploratory_influent_volume/`. It preserves provenance and does not convert units or deduplicate records. It is an exploratory filter, not a confirmed incoming-flow or modelling dataset; metadata with multiple records per point requires review.
 
-The present scripts are **not yet a complete final handoff**: they do not generate a confirmed analysis slice, a complete installation join-cardinality report, a data dictionary with confirmed definitions, or a quarantine table. A full-data run and expert review are necessary; retain all records until those are completed. The selected-slice and peer eligibility decisions remain for the team and TAI. No modelling, thresholds, labels or claims of physical cause are produced here.
+The review-candidate script copies blank, parse-failure and unmatched-point records for investigation. It does not remove them from the retained data or establish that they are errors. Duplicate and origin-join candidates are reported separately.
+
+The installation report checks literal origin and destination codes against the `Installation` field, including blanks and potential row multiplication. TAI must confirm this is the correct relationship before treating the join as authoritative.
+
+The present scripts are **not yet a complete final handoff**: they do not generate a confirmed analysis slice or a data dictionary with confirmed definitions. A full-data run and expert review are necessary; retain all records until those are completed. The selected-slice and peer eligibility decisions remain for the team and TAI. No modelling, thresholds, labels or claims of physical cause are produced here.
 
 For Sunil: use `cleaned/MeasurementValues` with `point_metadata.csv.gz` only after validating point ID uniqueness and joins. Preserve `source_file`, `source_row`, raw `Date`, `Value`, and `Unit`, parsed fields and quality flags. Check data availability at decision time and fit any preprocessing only on the appropriate training period.
