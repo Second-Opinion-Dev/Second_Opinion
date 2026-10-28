@@ -13,11 +13,13 @@ outputs are never deleted; an output that must be redone is moved aside first.
     python3 src/pipeline.py --smoke 30             # quick run on 30 points per group
     python3 src/pipeline.py --groups influent_volume --with-faults
     python3 src/pipeline.py --force detect         # redo all detector stages and downstream
+    python3 src/pipeline.py --jobs 3               # run up to three independent stages at once
 
 Outputs and logs are private partner-derived data under data/tai/; keep them out of Git.
 """
 
 import argparse
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import datetime
 import hashlib
@@ -198,30 +200,70 @@ def run_stage(stage: Stage, logs: Path) -> float:
 
 
 def execute(stages: list[Stage], state_path: Path, forced: list[str], dry_run: bool,
-            logs: Path | None = None) -> list[tuple[str, str, str]]:
+            logs: Path | None = None, jobs: int = 1) -> list[tuple[str, str, str]]:
+    """Run the stages that need it, up to `jobs` at once, each after all stages it needs.
+
+    Only this function writes the state file, so parallel stages cannot overwrite
+    each other's records. If a stage fails, no new stage starts; running stages
+    finish and are recorded, then the run stops with every failure listed.
+    """
+    if jobs < 1:
+        raise ValueError('jobs must be at least 1')
     state = read_json(state_path) or {}
     logs = logs or state_path.parent / 'logs'
     decisions = plan(stages, state, forced)
     prints = {}
-    report = []
-    for stage, action, reason in decisions:
+    for stage in stages:
         prints[stage.name] = fingerprint(stage, prints)
+    report = {stage.name: (action, reason) for stage, action, reason in decisions}
+    for stage, action, reason in decisions:
         print(f'{stage.name:24s} {action:6s} ({reason})', flush=True)
-        if dry_run:
-            report.append((stage.name, action, reason))
-            continue
-        if action == 'run':
-            seconds = run_stage(stage, logs)
-            reason = f'{reason}; {seconds:.0f}s'
-            print(f'    done in {seconds:.0f}s', flush=True)
-        if action in ('run', 'adopt'):
-            state[state_key(stage)] = {'fingerprint': prints[stage.name], 'finished': datetime.now().isoformat(timespec='seconds'),
-                                 'args': stage.args, 'output': None if stage.output is None else str(stage.output)}
-            state_path.parent.mkdir(parents=True, exist_ok=True)
-            # Written after every stage, so an interrupted run resumes where it stopped.
-            state_path.write_text(json.dumps(state, indent=2), encoding='utf-8')
-        report.append((stage.name, action, reason))
-    return report
+    if dry_run:
+        return [(stage.name, *report[stage.name]) for stage in stages]
+
+    def record(stage: Stage) -> None:
+        state[state_key(stage)] = {'fingerprint': prints[stage.name], 'finished': datetime.now().isoformat(timespec='seconds'),
+                                   'args': stage.args, 'output': None if stage.output is None else str(stage.output)}
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        # Written after every stage, so an interrupted run resumes where it stopped.
+        state_path.write_text(json.dumps(state, indent=2), encoding='utf-8')
+
+    for stage, action, _ in decisions:
+        if action == 'adopt':
+            record(stage)
+    finished = {stage.name for stage, action, _ in decisions if action != 'run'}
+    pending = [stage for stage, action, _ in decisions if action == 'run']
+    failures = []
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        running = {}
+        while pending or running:
+            # Start, in pipeline order, every waiting stage whose inputs are finished.
+            for stage in list(pending):
+                if failures or len(running) >= jobs:
+                    break
+                if all(name in finished for name in stage.needs):
+                    pending.remove(stage)
+                    print(f'  started  {stage.name}', flush=True)
+                    running[pool.submit(run_stage, stage, logs)] = stage
+            if not running:
+                break
+            done, _ = wait(running, return_when=FIRST_COMPLETED)
+            for future in done:
+                stage = running.pop(future)
+                try:
+                    seconds = future.result()
+                except SystemExit as error:
+                    failures.append(str(error))
+                    print(f'  FAILED   {stage.name}: {error}', flush=True)
+                    continue
+                finished.add(stage.name)
+                record(stage)
+                report[stage.name] = ('run', f'{report[stage.name][1]}; {seconds:.0f}s')
+                print(f'  finished {stage.name} in {seconds:.0f}s', flush=True)
+    if failures:
+        skipped = f'; {len(pending)} stage(s) not started' if pending else ''
+        raise SystemExit('Pipeline stopped: ' + ' | '.join(failures) + skipped)
+    return [(stage.name, *report[stage.name]) for stage in stages]
 
 
 def main() -> None:
@@ -234,9 +276,13 @@ def main() -> None:
     parser.add_argument('--force', nargs='+', default=[], metavar='STAGE',
                         help='Redo these stages (e.g. prepare, detect, forest:oxygen) and everything downstream')
     parser.add_argument('--plan', action='store_true', help='Show what would run or be skipped, then stop')
+    parser.add_argument('--jobs', type=int, default=1, metavar='N',
+                        help='Run up to N independent stages at once (each detector holds its group in memory)')
     args = parser.parse_args()
     if args.smoke is not None and args.smoke < 1:
         parser.error('--smoke must be positive')
+    if args.jobs < 1:
+        parser.error('--jobs must be at least 1')
     root = DATA / (f'pipeline_smoke{args.smoke}' if args.smoke else 'pipeline')
     stages = build_stages(root, args.groups, args.smoke, args.with_faults, args.target_flag_rate, args.fault_sample)
     known = {stage.name for stage in stages} | {stage.name.split(':')[0] for stage in stages}
@@ -245,7 +291,7 @@ def main() -> None:
         parser.error(f'unknown stage(s) {unknown}; choose from {sorted(known)}')
     print(f'Pipeline outputs: {root}', flush=True)
     # One state file for all runs, so smoke and full runs share download, prepare and verify.
-    execute(stages, DATA / 'pipeline_state.json', args.force, args.plan, logs=root / 'logs')
+    execute(stages, DATA / 'pipeline_state.json', args.force, args.plan, logs=root / 'logs', jobs=args.jobs)
     print('Plan only; nothing was run.' if args.plan else 'Pipeline complete. Outputs are private and provisional.')
 
 

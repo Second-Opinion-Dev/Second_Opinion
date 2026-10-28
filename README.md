@@ -13,7 +13,7 @@ TAI download → prepare and retain provenance → verify
   → optional artificial-fault evaluation (history detector)
 ```
 
-The driver runs the history detector and a separate Isolation Forest for each group: `influent_volume`, `oxygen` and `ammonium`. These are narrow exploratory metadata filters, not every reading of those types; their meaning and availability need confirmation from TAI. The history detector remains independently usable. No peer comparison is implemented.
+The driver runs the history detector and a separate Isolation Forest for each group: `influent_volume`, `oxygen`, `ammonium`, `nitrate`, `suspended_solids` and `temperature`. These are narrow exploratory metadata filters, not every reading of those types; their meaning and availability need confirmation from TAI. The history detector remains independently usable. No peer comparison is implemented.
 
 | Component | Purpose | Documentation |
 | --- | --- | --- |
@@ -45,10 +45,13 @@ python src/pipeline.py --smoke 30                       # partial run, 30 points
 python src/pipeline.py                                  # full run
 python src/pipeline.py --groups oxygen --force detect   # rerun oxygen detection and downstream
 python src/pipeline.py --with-faults                    # optional artificial-fault evaluation
+python src/pipeline.py --jobs 3                         # run up to three independent stages at once
 python -B -m unittest discover -s tests -t . -v        # synthetic-fixture tests
 ```
 
 The smoke run still requires full preparation; it limits points in downstream stages and is not a complete analysis. `--plan` performs no stages. The driver reuses complete outputs when its fingerprints match, records state in `data/tai/pipeline_state.json`, and moves existing outputs aside with an `.old-<timestamp>` suffix before a rerun. Review the plan and allow substantial time and disk space for full preparation. Outputs and logs are under `data/tai/pipeline/` or `data/tai/pipeline_smoke<N>/`; see the component handoffs for individual commands and other paths.
+
+With `--jobs N`, each stage starts once the stages it needs have finished, up to N at a time; only the driver writes the state file. If a stage fails, no new stage starts, running stages finish and are recorded, and a rerun resumes from there. Each detector holds its whole group in memory, so check free RAM before raising N. A 20-point smoke run of all six groups took 64 s with `--jobs 3`, against about 3 minutes of stage time run one at a time.
 
 ## Interpreting results
 
