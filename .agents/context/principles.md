@@ -23,7 +23,7 @@
 - Reusable logic in modules (e.g. `src/`), notebooks exploratory only, the app imports modules.
 - Seeds, saved config, saved artifacts, recorded package versions, exact run commands.
 - Never modify raw data in place; derived data goes elsewhere. Create folders only when needed.
-- Record consequential choices in `data/tai_work/DECISIONS.md` so ideas are not re-litigated.
+- Record consequential choices in `docs/data_prep/DECISIONS.md` so ideas are not re-litigated.
 - Ask the user only when a blocking ambiguity cannot be resolved by inspecting the files.
 
 ## Prioritisation
@@ -34,6 +34,6 @@ water professional make a better decision?*
 
 ## Data safety
 Partner data is for the hackathon only. The datasets are git-ignored: never commit or share the data
-or the API key; each teammate downloads their own copy. Reviewed code and documentation in
-`data/tai_work/` are tracked. Work locally: no uploading data or sending
+or the API key; each teammate downloads their own copy. Code in `src/`, tests in `tests/` and
+documentation in `docs/` are tracked; `data/` holds data only. Work locally: no uploading data or sending
 raw contents to external APIs/services without explicit user authorisation. Do not expose sensitive identifiers in docs, logs or screenshots.

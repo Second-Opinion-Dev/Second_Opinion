@@ -10,6 +10,6 @@ Under a literal destination-to-installation join, 22,378,980 measurement rows ha
 
 The sequence report covers 22,946 point IDs with observations. It found calendar gaps between observations for 13,193 points, adjacent repeated nonblank value strings for 20,336 points, and no adjacent unit-string changes. A calendar gap is not proof of a missing expected reading, repeated values may be valid, and literal date ordering and same-date ties limit this summary.
 
-The script-generated detailed reports, including point IDs and records, stay in a private local output directory. The outputs remain preliminary while expert questions and further checks are unresolved. Ask TAI the questions in `data/tai_work/QUESTIONS.md`; do not infer physical causes, operating limits or labels.
+The script-generated detailed reports, including point IDs and records, stay in a private local output directory. The outputs remain preliminary while expert questions and further checks are unresolved. Ask TAI the questions in `docs/data_prep/QUESTIONS.md`; do not infer physical causes, operating limits or labels.
 
 An exploratory metadata filter for `Influent` and `Volume` included 682 point metadata rows across several unit strings and copied 871,475 measurements. It is not an approved incoming-flow slice or peer set. Selection requires confirmation of meaning, unit expression, measurement method and time availability. The review-candidate export copied 30,988 blank-value records for inspection; all remain in the retained dataset.

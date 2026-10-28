@@ -1,11 +1,11 @@
 ---
 name: understand-data
-description: Stage 1. Inspect all supplied files and document what the data is, its structure and quality in data/tai_work/DATA_AUDIT.md. Use before any modelling.
+description: Stage 1. Inspect all supplied files and document what the data is, its structure and quality in docs/data_prep/DATA_AUDIT.md. Use before any modelling.
 ---
 
 # Stage 1: Understand the data
 
-Inspect everything recursively; do not model yet. For each file/table record in `data/tai_work/DATA_AUDIT.md`
+Inspect everything recursively; do not model yet. For each file/table record in `docs/data_prep/DATA_AUDIT.md`
 (only facts you verified; mark inferences as *inferred* and unknowns as TODO):
 
 - format, encoding/delimiter, dimensions, relationships and join keys;
@@ -21,8 +21,8 @@ Use quick pandas profiling in a script or notebook; keep reusable loaders in a m
 Explain to the user in plain language what each file and important column appears to be, and
 list unresolved questions (worth asking the organisers on the day).
 
-For the TAI challenge, use the existing scripts under `data/tai_work/scripts/` and the instructions in
-`data/tai_work/HANDOFF.md`; consult `data/tai_work/DATA_AUDIT.md` and `data/tai_work/QUESTIONS.md` before making
+For the TAI challenge, use the existing scripts under `src/data_prep/` and the instructions in
+`docs/data_prep/HANDOFF.md`; consult `docs/data_prep/DATA_AUDIT.md` and `docs/data_prep/QUESTIONS.md` before making
 assumptions. Keep partner data, generated reports and access keys local and out of Git.
 
-Done when: `data/tai_work/DATA_AUDIT.md` is filled in and the user has the summary.
+Done when: `docs/data_prep/DATA_AUDIT.md` is filled in and the user has the summary.

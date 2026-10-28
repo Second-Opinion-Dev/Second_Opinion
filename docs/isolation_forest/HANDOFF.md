@@ -12,10 +12,10 @@ from untrusted sources.
 
 ## Input and features
 
-Use a complete `history_detector/history_detector.py` output directory with
+Use a complete `src/history_detector/history_detector.py` output directory with
 `run_info.json` and `history_scores.csv.gz`. Select one unconfirmed metadata group
 per run: `influent_volume`, `oxygen`, or `ammonium`; see
-`history_detector/HANDOFF.md` for exact product, quantity, unit, state and input
+`docs/history_detector/HANDOFF.md` for exact product, quantity, unit, state and input
 filters. The program checks that all rows match the recorded selection. Run a
 separate forest for each group; do not mix groups or compare raw scores across
 their independently fitted models.
@@ -87,16 +87,16 @@ are not calibrated to a common scale.
 From the repo root, after running the history detector:
 
 ```bash
-python3 -B isolation_forest/model.py \
+python3 -B src/isolation_forest/model.py \
   --history-dir data/tai/history_scores \
   --output data/tai/isolation_forest_run1
-python3 -B isolation_forest/model.py \
+python3 -B src/isolation_forest/model.py \
   --history-dir data/tai/history_oxygen \
   --output data/tai/isolation_oxygen
-python3 -B isolation_forest/model.py \
+python3 -B src/isolation_forest/model.py \
   --history-dir data/tai/history_ammonium \
   --output data/tai/isolation_ammonium
-python3 -B -m unittest -v isolation_forest.test_model
+python3 -B -m unittest discover -s tests -t . -v
 ```
 
 Choose a new empty private output directory for each run; the program never
@@ -135,7 +135,7 @@ on unseen plants and other periods before generalising. Do not claim AI is an
 improvement until comparable, independent evidence supports it.
 
 The statistical detector remains available independently. The tests in
-`isolation_forest/test_model.py` use artificial fixtures to check chronology,
+`tests/test_isolation_forest.py` use artificial fixtures to check chronology,
 isolation between series, duplicates, gaps, zero spread, threshold-free features, deterministic fitting,
 held-out leakage, budget ties and model reload. They do not prove operational
 usefulness or validate all possible data conditions.

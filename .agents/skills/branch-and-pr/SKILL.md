@@ -29,7 +29,7 @@ One person, one item, one branch, one PR into `main`. Never commit directly to `
 - Pull `main` into the branch (`git fetch origin && git merge origin/main`) before opening the PR
   and resolve conflicts locally.
 - Do not commit secrets, the partner API key, `.env`, virtualenvs, partner datasets or generated
-  `artifacts/` / `reports/`. Reviewed TAI code and documentation in `data/tai_work/` are tracked;
+  `artifacts/` / `reports/`. Code in `src/`, tests in `tests/` and docs in `docs/` are tracked;
   do not rewrite or delete raw files in `data/`.
 
 ## Finishing: open the PR
@@ -52,9 +52,9 @@ One person, one item, one branch, one PR into `main`. Never commit directly to `
 - **Title:** imperative, under about 70 characters, describing the outcome
   (`Add rolling MAD anomaly baseline`). Optionally prefix the stage (`Baseline:`).
 - **Body:** fill the template: summary, what changed, how to run/verify (exact commands), results
-  (recorded numbers only, no invented metrics), decisions logged in `data/tai_work/DECISIONS.md`, limitations
+  (recorded numbers only, no invented metrics), decisions logged in `docs/data_prep/DECISIONS.md`, limitations
   or follow-ups, and anything reviewers should check (data touched, new dependencies).
-- Link the relevant `data/tai_work/DECISIONS.md` entries rather than repeating them.
+- Link the relevant `docs/data_prep/DECISIONS.md` entries rather than repeating them.
 
 ## Rules
 

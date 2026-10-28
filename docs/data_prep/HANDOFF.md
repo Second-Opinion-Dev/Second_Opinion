@@ -10,15 +10,15 @@ From the repository root, on Windows PowerShell:
 
 ```powershell
 python -m pip install pandas
-python data/tai_work/scripts/tai_redownload.py --output '../tai-redownload' --previous-manifest '../hackathon-downloads/download-manifest.json'
-python data/tai_work/scripts/tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
-python data/tai_work/scripts/tai_verify.py '../tai-analysis/pipeline-redownload'
-python data/tai_work/scripts/tai_sequence_report.py '../tai-analysis/pipeline-redownload'
-python data/tai_work/scripts/tai_metadata_report.py '../tai-analysis/pipeline-redownload'
-python data/tai_work/scripts/tai_installation_report.py '../tai-analysis/pipeline-redownload'
-python data/tai_work/scripts/tai_candidate_slice.py '../tai-analysis/pipeline-redownload'
-python data/tai_work/scripts/tai_review_candidates.py '../tai-analysis/pipeline-redownload'
-python -m unittest discover -s data/tai_work/tests -v
+python src/data_prep/tai_redownload.py --output '../tai-redownload' --previous-manifest '../hackathon-downloads/download-manifest.json'
+python src/data_prep/tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
+python src/data_prep/tai_verify.py '../tai-analysis/pipeline-redownload'
+python src/data_prep/tai_sequence_report.py '../tai-analysis/pipeline-redownload'
+python src/data_prep/tai_metadata_report.py '../tai-analysis/pipeline-redownload'
+python src/data_prep/tai_installation_report.py '../tai-analysis/pipeline-redownload'
+python src/data_prep/tai_candidate_slice.py '../tai-analysis/pipeline-redownload'
+python src/data_prep/tai_review_candidates.py '../tai-analysis/pipeline-redownload'
+python -m unittest discover -s tests -t . -v
 ```
 
 The downloader requires a new output directory and verifies archive size, official SHA-256 when supplied, extracted sizes, gzip integrity and SHA-256 hashes. It compares the archive hash to the earlier manifest if provided. A changed hash needs investigation, not an automatic corruption conclusion. Do not run it until the key is set. It does not overwrite an existing download.
