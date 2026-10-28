@@ -1,74 +1,29 @@
-# AISO AI for Water Hackathon
+# Second Opinion — AI for Water
 
-Our submission for **AI for Water**, AISO x University of Amsterdam, Wednesday 28 October 2026,
-Amsterdam. Challenge organisations: TAI / Croonwolter&dros, VLE Global, Waterschap AGV.
-Goal: a technically credible, explainable and demo-able AI solution that water professionals
-would want to keep developing.
+Second Opinion helps wastewater operators investigate unusual TAI / Z-info measurements. It compares each reading with its own recent history, groups flagged days into cases and offers an experimental Isolation Forest as a second ranking. An operator decides what to investigate; neither detector diagnoses a fault.
 
-## Status
+There are no confirmed anomaly labels. The selected measurement groups and their meanings remain exploratory; real-world accuracy, false-alarm reduction and time savings have not been established. A dashboard and feedback workflow are proposals, not implemented components. See [idea.md](idea.md) for the problem, methodology and limitations.
 
-**Hackathon data available.** The team is working on the TAI Second Opinion proposal; see
-`idea.md`, `docs/data_prep/DATA_AUDIT.md`, and `docs/data_prep/HANDOFF.md` for current evidence and limitations.
-
-| | |
-| --- | --- |
-| Challenge | Investigate unusual wastewater measurements |
-| Organisation | TAI / Z-info |
-| Problem statement | Help operators prioritise suspicious measurements for validation |
-| Approach | History-based baseline and experimental Isolation Forest; investigation queue proposed; see `idea.md` |
-| Results | TBD (recorded numbers only) |
-| Demo | TBD |
-
-## Repository layout
+## Pipeline
 
 ```text
-src/
-  pipeline.py                 Runs the whole pipeline, skipping completed stages
-  data_prep/                  Data download, TAI preparation, verification and reports
-  history_detector/           History-only detector and synthetic-fault comparison
-  isolation_forest/           Experimental Isolation Forest layer
-tests/                        Automated checks for every stage and the driver
-docs/
-  data_prep/                  TAI audit, decisions, handoff, questions and work log
-  history_detector/           Detector decisions and handoff
-  isolation_forest/           Isolation Forest handoff
-data/                         Downloaded partner data and outputs only (ignored by Git)
-app/, notebooks/              Demo and exploration, when needed
-artifacts/, reports/          Generated outputs (git-ignored)
-AGENTS.md                     Instructions for AI coding agents
-.agents/                      Agent context, staged skills and templates
-requirements.txt              Python dependencies
+TAI download → prepare and retain provenance → verify
+  → history detector + data-quality rules → per-plant ranked cases
+  → optional Isolation Forest → separate scores and comparison
+  → optional artificial-fault evaluation (history detector)
 ```
 
-For TAI setup, commands and private output locations, see `docs/data_prep/HANDOFF.md`.
+The driver runs the history detector and a separate Isolation Forest for each group: `influent_volume`, `oxygen` and `ammonium`. These are narrow exploratory metadata filters, not every reading of those types; their meaning and availability need confirmation from TAI. The history detector remains independently usable. No peer comparison is implemented.
 
-## Working as a team
+| Component | Purpose | Documentation |
+| --- | --- | --- |
+| Data preparation | Download, retain source rows and flag quality issues | [Data preparation](docs/data_prep/README.md) |
+| History detector | Score prior history, apply rules and group cases | [History detector](docs/history_detector/README.md) |
+| Isolation Forest | Rank eligible readings using history-based features | [Isolation Forest](docs/isolation_forest/README.md) |
 
-- One person, one item, one branch: `<name>-<work>` (e.g. `joshua-setup-fixes`).
-- Open a PR into `main` when the item is done; a teammate reviews and merges. No direct commits
-  to `main`. Details: `.agents/skills/branch-and-pr/SKILL.md`.
-- Partner data in `data/` is git-ignored; code, tests and docs live in `src/`, `tests/` and `docs/`.
-  Partner rules forbid committing or sharing the data and API key,
-  so each teammate downloads their own copy: copy `data/.env.example` to `data/.env`, add the key
-  from the briefing, then run `python3 src/data_prep/download.py [agv|tai|vle ...]` (no argument = all).
-  Never edit raw files in place, and delete the data
-  after the event unless the partner agrees otherwise in writing.
-- Log consequential choices in `docs/data_prep/DECISIONS.md` so we don't re-try rejected ideas.
+## Setup
 
-## Working with AI agents
-
-We use coding agents (Claude Code, Codex) to move fast. They follow `AGENTS.md` and the staged
-playbooks in `.agents/skills/` (understand data -> frame -> explore -> baseline -> improve ->
-differentiate -> build -> demo app -> validate -> pitch).
-
-On the day, put the materials in `data/raw/` and tell your agent:
-
-> Challenge materials are in `data/raw/`. Run `.agents/skills/00-start-here`.
-
-Review each stage's output before approving the next. Agents must not invent data properties,
-metrics or causes.
-
-## Setup (WSL)
+Use Python 3.11 or newer. From the repository root, on macOS or Linux:
 
 ```bash
 python3 -m venv .venv
@@ -76,43 +31,42 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Work inside the WSL filesystem (`~/`) rather than `/mnt/d` for speed. To make Claude Code
-auto-discover the skills: `mkdir -p .claude && ln -s ../.agents/skills .claude/skills`.
+On Windows PowerShell, use `python -m venv .venv`, then `.venv\Scripts\Activate.ps1`, followed by the same pip install command. Requirements are unpinned; record `python --version` and `python -m pip freeze` with results you need to reproduce. Model files are version-sensitive: use trusted local files and the recorded package versions.
 
-## Run the whole pipeline
+For a new TAI download, copy `data/.env.example` to `data/.env` and privately add `AISO_API_KEY` from the participant briefing. Alternatively set the environment variable in your shell. The key was issued for the event and its availability may have expired. Never paste it into Git, documentation, chat or shell history.
 
-`src/pipeline.py` runs every stage as a separate process through its existing script:
-download → prepare → verify → detector → Isolation Forest, per measurement group, with
-the synthetic-fault comparison optional. It skips stages that are already done:
+## Run
+
+From the repository root:
 
 ```bash
-python3 src/pipeline.py --plan                        # show what would run or be skipped
-python3 src/pipeline.py                               # run everything not yet done
-python3 src/pipeline.py --smoke 30                    # quick run on 30 points per group
-python3 src/pipeline.py --with-faults                 # also run the slow fault comparison
-python3 src/pipeline.py --groups oxygen --force detect  # redo detector and forest for oxygen
+python src/pipeline.py --plan                           # inspect planned actions
+python src/pipeline.py --smoke 30                       # partial run, 30 points per group
+python src/pipeline.py                                  # full run
+python src/pipeline.py --groups oxygen --force detect   # rerun oxygen detection and downstream
+python src/pipeline.py --with-faults                    # optional artificial-fault evaluation
+python -B -m unittest discover -s tests -t . -v        # synthetic-fixture tests
 ```
 
-A stage is skipped when its output is complete and its script, arguments and upstream
-stages are unchanged; these are fingerprinted in `data/tai/pipeline_state.json`. A complete
-download or preparation made before the driver existed is adopted as done. Outputs go to
-`data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`), with one log per stage in `logs/`.
-Nothing is deleted: an output that must be redone is renamed `<name>.old-<timestamp>`
-first. The download stage needs `AISO_API_KEY` (see `data/.env.example`). All outputs are
-private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest discover -s tests -t .`.
+The smoke run still requires full preparation; it limits points in downstream stages and is not a complete analysis. `--plan` performs no stages. The driver reuses complete outputs when its fingerprints match, records state in `data/tai/pipeline_state.json`, and moves existing outputs aside with an `.old-<timestamp>` suffix before a rerun. Review the plan and allow substantial time and disk space for full preparation. Outputs and logs are under `data/tai/pipeline/` or `data/tai/pipeline_smoke<N>/`; see the component handoffs for individual commands and other paths.
 
-## Provisional TAI history detector
+## Interpreting results
 
-`src/history_detector/history_detector.py` implements a history-only rolling median/MAD
-detector for separate exploratory influent-volume, oxygen and ammonium slices.
-It has not been validated against real labels or operator review. Read
-`docs/history_detector/HANDOFF.md` for selection, setup, commands and limitations.
+The history score describes deviation from a point's prior median, and rules flag selected data-quality patterns. Unscored readings have reasons and must not be treated as normal. The Isolation Forest scores unusual combinations of history-based features; its score is not a probability or a diagnosis. Its held-out comparison uses the same eligible readings and a stated per-plant, per-day review budget. Artificial-fault recovery and overlap are not real-world accuracy; expert review is needed to establish usefulness and operator costs.
 
-## Experimental Isolation Forest
+## Repository layout
 
-`src/isolation_forest/model.py` uses prior-history features to rank eligible readings.
-Run a separate forest for each selected slice; it retains the history baseline
-and does not use peer comparisons. The model is
-experimental; no labelled real-world accuracy is established. See
-`docs/isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
-private artifact handling.
+```text
+src/pipeline.py              Pipeline driver
+src/data_prep/               Download, preparation and reports
+src/history_detector/        History detector and artificial-fault evaluation
+src/isolation_forest/        Experimental Isolation Forest
+tests/                       Automated synthetic-fixture tests
+docs/                        Component guides, audits, decisions and handoffs
+data/                        Local partner data and outputs (ignored)
+idea.md                      Project framing and detailed methodology
+requirements.txt             Core Python dependencies
+AGENTS.md, .agents/          Agent instructions and team workflow
+```
+
+Partner data, derived outputs, fitted models and credentials must stay local and out of Git. Never modify raw data in place. The briefing restricts data to the hackathon and requires deletion afterwards unless the partner agrees otherwise in writing. Work on a named branch and open a pull request into `main`; see [the team workflow](.agents/skills/branch-and-pr/SKILL.md).
