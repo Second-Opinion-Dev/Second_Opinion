@@ -1,16 +1,18 @@
-# Second Opinion: smarter validation of wastewater measurements
+# Second Opinion: history-based validation of wastewater measurements
 
-**Tagline:** Spot unusual measurements, compare the evidence, and decide what to
-check first.
+**Tagline:** Spot unusual measurements, understand the evidence, and decide what
+to check first.
 
-**Status:** Proposed hackathon project. The methods, peer eligibility, and
-operational usefulness are hypotheses to test, not established results.
+**Status:** A provisional history-only detector has been implemented and run on
+local historical data. It has **not been tested, evaluated or calibrated**.
+The proposed dashboard and review queue are not yet implemented. Peer comparison
+is not used in the detector or the current project scope.
 
 ## The challenge
 
 TAI / Z-info asks us to detect and flag unusual measurements at wastewater
-treatment plants, explain why the flags are useful, and consider what false
-alarms cost an operator. The data has no confirmed anomaly labels.
+plants, explain why the flags are useful, and consider what false alarms cost an
+operator. The data has no confirmed anomaly labels.
 
 In the mentor briefing, TAI described a validation workflow in which readings
 outside predefined limits trigger warnings, while readings within those limits
@@ -20,179 +22,186 @@ these are briefing figures, not counts verified from the supplied dataset.
 Validated data is used downstream for analysis, reporting and decisions. The
 longer-term ambition described in the briefing is an AI-supported digital operator.
 
-Wastewater plants collect many measurements. A reading may look unusual because
-of a change in the process, a measurement or data issue, or a change also seen
-at other plants. Flagging every unusual value could overwhelm an operator.
-
 **Our problem statement:** How can we identify suspicious measurements that
 existing limit-based checks may miss, explain why they deserve attention, and
 help operators prioritise their validation within the time available?
 
-An unusual value is a reason to investigate, not proof of a fault, incident,
-physical cause, or safe condition. The operator remains responsible for decisions.
+A flag is a reason to investigate, not proof of a faulty reading, a plant
+incident, its physical cause, or a safe condition. The operator makes decisions.
+Actual applicable historical limits and outcomes are needed before claiming an
+existing check missed a reading.
 
 ## The idea
 
-Second Opinion is a decision-support dashboard that compares an observation with:
+Second Opinion compares a reading with the recent history of the **same
+measurement point and process context**. It reports how the reading differs from
+its typical recent value and why it was flagged or could not be scored.
 
-1. **Its own history:** Is this reading unusual for this measurement point?
-2. **Eligible peers:** Did other comparable plants show a similar change on the
-   same day, relative to their own histories?
-3. **The review budget:** Which cases can be checked now, and which remain for later?
-
-The dashboard groups suitable consecutive flags into cases and presents an
-investigation queue. Each case shows the reading, unit, historical chart, available
-peer context, reason for the flag, and a suggested investigation. It keeps deferred
-cases visible; it never claims an unreviewed case is safe or automatically closes it.
+A later operator interface could turn these observations into an investigation
+queue. It could group consecutive flags, let an operator specify a review budget,
+and show both selected and deferred cases. This interface is a proposal, not a
+feature implemented by the current detector. Deferral is not evidence of safety.
 
 ### Illustrative example — not a dataset finding
 
-Suppose an incoming-flow measurement for Plant A is much higher than usual. The
-system compares it with Plant A's history and with changes at eligible peer plants.
-It shows the evidence and suggests checking the reading and relevant operating
-records. If peers also increase, say **“similar change observed at other plants”**;
-do not infer that rain caused it, that the event is harmless, or that all plants
-share the same cause.
+Suppose a measurement at a plant is much higher than its recent median. The
+detector can flag the reading and show its value, unit, historical median and
+anomaly score. An operator can then check the measurement and operating records.
+The detector does not compare other plants or conclude what caused the change.
 
-## Proposed implementation
+## Implemented methodology
 
-### 1. Understand and select a suitable slice
+The implementation is `history_detector/history_detector.py`. It is a statistical,
+history-based baseline; it does not train a neural network or supervised
+classifier. Its threshold and performance are not validated.
 
-- Inspect installation, measurement-point, and daily-value files and their
-  relationships. Confirm column meanings, units, input types, time availability,
-  quality, and operational relevance with TAI experts.
-- Prefer daily incoming water flow **only if** it has the same meaning and
-  compatible units across enough plants, sufficient history and overlapping dates,
-  and workable data quality. Otherwise choose a better-supported measurement.
-- Identify eligible plants and points before comparing them. Compare like with
-  like: measurement meaning, unit, process context, measurement method and
-  expression basis must be compatible. Do not assume all plants are peers.
-- Examine missing values, repeated or default-like values, and conflicting
-  same-date records. Preserve raw records and document any exclusion or handling;
-  do not silently average or discard conflicting values.
-- Ask the experts what operators currently investigate, how long reviews take,
-  what matters operationally, and whether they can review sample cases. Confirm
-  whether actual limits, their historical versions and validation outcomes are
-  available and comparable to the selected readings.
+### 1. Prepare and select inputs
 
-### 2. Build the history-only baseline
+The detector reads the completed full output of the TAI preparation pipeline:
+`summary.json`, `point_metadata.csv.gz` and `cleaned/MeasurementValues/*.csv.gz`.
+The preparation preserves raw fields, source file and row, parsed values and
+quality flags. The detector requires unique, nonblank point IDs, matching source
+files and matching point/value units; it refuses partial preparation output.
 
-For each eligible point, compare a reading with a typical value and variability
-computed from that point's **prior** observations. Flag a sufficiently large
-deviation using a clear, reproducible rule; a rolling median and robust spread are
-reasonable candidates. Handle insufficient history, missing data and zero spread
-explicitly. Record configuration and the reasons a case was or was not assessed.
+The initial exploratory slice uses these literal metadata fields:
 
-Fit or choose thresholds using training/validation data only. Keep a later time
-period untouched for evaluation. Do not use future measurements in a baseline,
-rolling feature, peer eligibility decision, threshold or replay.
+- `ProductDescription`: `Influent`
+- `QuantityDescription`: `Volume`
+- `ParameterDescription`: `Niet van toepassing`
+- `Unit`: `m3`
+- `InputType`: `scada`
 
-### 3. Add peer context
+TAI has not yet confirmed that these points are comparable incoming-flow
+measurements, or what their reporting period and input type mean. Do not
+extrapolate this selection to all plants or measurement types.
 
-For each target plant and day, calculate its change relative to its own history
-and compare it with the corresponding changes of eligible peers. Use only peer
-readings available at the decision time; same-date timestamps alone do not prove
-simultaneous availability. Show how many peers were available, the comparison,
-and why they were selected.
+### 2. Keep each history separate
 
-If peer coverage, comparability, or availability is insufficient, display
-**“peer comparison unavailable”** and use the history-only result. A shared
-change is context, not proof that a reading is safe. Do not automatically suppress
-or downgrade shared changes without a justified and evaluated rule; retain access
-to all candidates.
+Records are grouped by origin installation, measurement point, origin subprocess,
+process, product, product balance, destination installation, destination
+subprocess and unit. Each group has its own history; readings from other points,
+contexts or plants do not enter it. Records are sorted by date before scoring.
 
-### 4. Build the review queue
+### 3. Calculate the historical baseline and score
 
-- Rank cases using a clear, documented rule and the evidence available; do not
-  claim the ranking represents verified probability or severity.
-- Where appropriate, group consecutive flags for the same point and plant into a
-  case. Describe grouping and preserve access to underlying observations.
-- Let the operator choose a review budget, such as a number of cases. Display
-  selected and deferred cases and their counts; flag that deferral can leave an
-  important case unreviewed.
-- If showing estimated review time or cost, use expert-provided values or clearly
-  labelled assumptions. Do not present assumptions as measured savings or costs.
-- Keep questionable data distinct from possible process changes; explain that
-  neither category is a confirmed diagnosis. Suggested actions are checks, not
-  instructions to change plant operation.
+For a reading on day `t`:
 
-## Testing without anomaly labels
+1. Select eligible observations from **`[t - 28 days, t)`**: the preceding 28
+   calendar days, excluding the current day. Require at least **14 valid days**.
+2. Calculate their **median**, the middle value in the recent history.
+3. Calculate **MAD**, the median of the absolute deviations from that median.
+   This gives a robust measure of the historical spread.
+4. Calculate the absolute deviation score:
 
-Where actual applicable limits are available, add the existing limit-based rule
-as a comparator and identify candidates that remain inside those limits. If
-limits or their historical applicability cannot be established, say that the
-comparison is unavailable; do not invent thresholds or claim a flag was missed
-by the existing system. A flag inside a limit is not by itself a confirmed error.
+   ```text
+   score = |current value - historical median| / (1.4826 × MAD)
+   ```
 
-The strongest available evidence may be limited. Compare the history-only and
-peer-aware methods on the **same chronological holdout, eligible points, event
-definitions, review budgets and evaluation protocol**. Keep training, threshold
-selection, and test data separate.
+5. Flag scores **greater than or equal to 3.5**. The window, minimum history and
+   threshold can be configured. The 3.5 threshold is an uncalibrated starting
+   value, not a probability, a measured risk level or an approved operating limit.
 
-1. Create controlled artificial changes **in copies of held-out historical data**:
-   spikes, drops, gradual changes, and changes shared across plants. Record the
-   seed, exact locations and magnitudes, and preserve the unmodified originals.
-2. Report how many injected cases each approach finds or misses at the same review
-   budget, as well as the number of flagged points, grouped cases, and deferred
-   cases. Include unchanged periods so the methods cannot appear successful simply
-   by flagging everything. Specify whether results are point- or event-level.
-3. Clearly label these as **artificial test results**. Recovery of injections is
-   not real-world precision, recall, false-alarm rate, or proof of safety. Do not
-   use fabricated examples as evidence of actual plant incidents.
-4. If TAI experts are available, ask them to review a small, documented sample of
-   real cases, including deferred or unflagged periods where feasible. Record
-   useful / not useful / unsure and the review protocol. Distinguish this limited
-   feedback from ground-truth validation.
-5. If peer context does not improve results, report that honestly and show it as
-   context only. Never claim reduced false alarms or saved time without evidence.
+The window only uses prior records, preventing the current or future readings
+from entering their own baseline. Valid prior flagged readings remain in later
+windows; this allows adaptation but can mask a sustained change. Real-world
+availability times for the date-only export still need confirmation from TAI.
+
+### 4. Preserve uncertainty and provenance
+
+A record is **unscored**, with a reason, when its date or value is invalid,
+its preparation flags require review, there are multiple rows for that series
+and calendar day, there is insufficient valid history, or the historical MAD is
+zero. Same-day duplicates and other ineligible records are also excluded from
+later history; the source records remain intact. The detector does not silently
+average conflicting records, fill missing values or convert units. Zero and
+negative values are not automatically treated as invalid.
+
+Output includes the original date, value and unit; installation, point and
+process context; source file and row; quality flags; historical count, median
+and MAD; score; nullable flag; direction; status; and explanation. A blank flag
+means **unscored**, not normal. The data and scores stay local and out of Git.
+
+## Running the detector
+
+With a local TAI download and the required Python packages, run from the project
+root. Both output directories must be new or empty and must remain private:
+
+```bash
+python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+```
+
+Reuse a completed preparation directory instead of rerunning the first command.
+For another scoring run choose a new output directory. Optional detector
+settings are `--window-days`, `--minimum-history` and `--threshold`. The output
+contains `history_scores.csv.gz` and a `run_info.json` completion marker with
+configuration, package versions and counts. If the marker is absent, treat the
+output as incomplete. Paths differ for teammates; see
+`history_detector/HANDOFF.md` for setup, output fields and limitations.
+
+## Testing, baseline comparison and results — next teammate
+
+No tests, peer comparison, baseline benchmark or model evaluation have been
+performed for this detector. The successful local run establishes only that it
+executed, not that its flags are accurate or useful. The next teammate should:
+
+1. Confirm the slice, units, duplicate handling, data availability and important
+   operating measurements with TAI; ask about review time and incident labels.
+2. Check the implementation's window boundaries, absence of future leakage,
+   grouping, missing/duplicate values, zero MAD, provenance and edge cases.
+3. Choose and freeze settings using an earlier period, then evaluate on a later
+   held-out period. Compare with an agreed simple baseline at the same review
+   budget; compare actual historical validation limits only if their
+   applicability and values are supplied.
+4. If the team authorises artificial changes in **copies** of held-out data,
+   record the seed and compare recovery of spikes, drops and gradual changes,
+   including unchanged periods. These are artificial-case results, not
+   real-world accuracy or a measured false-alarm rate.
+5. If possible, ask TAI experts to review a documented sample of flagged and
+   unflagged cases and record useful / not useful / unsure. Measure review time
+   or label assumptions clearly; do not claim savings from assumptions alone.
+
+See `history_detector/HANDOFF.md` and the existing baseline and validation skills
+for the detailed handoff. Do not claim precision, recall, false-alarm reduction,
+operational savings or causes without adequate evidence. Peer comparison is not
+part of this implementation or its proposed baseline evaluation.
 
 ## Scope and demo
 
-**Must have:** one appropriate measurement type; a reproducible history-only
-baseline; an understandable case view; a ranked queue with visible deferred cases;
-an honest statement of limitations.
+**Implemented:** a provisional history-only detector and private row-level output.
 
-**Should have:** eligible-peer comparison with a clear fallback; consecutive-day
-case grouping; review-budget control; side-by-side baseline and peer-aware tests.
+**Next priorities:** confirm the measurement semantics; test and calibrate the
+baseline; build an understandable case view and review queue, showing deferred
+cases if the operator sets a budget. These are not implemented yet.
 
-**Wow feature:** an interactive view showing how the two methods and their
-deferred cases change at the same review budget, supported by recorded test results.
-Do not sacrifice the working core for an unfinished feature.
+A proposed demo would explain the operator's problem, open a historical flagged
+case, show the reading and historical evidence, show the review queue if built,
+and report only recorded test results and limitations. No peer comparison is
+needed for this demo.
 
 ### Optional bonus: dry-weather insights
 
 Only after the core validation workflow works, explore differences between dry
 and wet periods if suitable weather information and compatible measurements are
-available. Compare incoming flow and available water-quality measures where
-appropriate, and discuss possible operational relevance with experts. Label
-observed associations and limitations clearly: lower flow does not establish
-easier treatment or lower costs, and those outcomes require supporting evidence.
-This is a separate exploratory bonus, not a prerequisite for the core submission.
-
-For the demonstration:
-
-1. Explain the operator's problem and open one real, historical flagged case.
-2. Show its history, reason for the flag and peer context, if eligible peers exist.
-3. Adjust the review budget and show selected and deferred cases.
-4. Compare the baseline and peer-aware method on the same artificial tests.
-5. State the limitations, expert feedback obtained, and next validation steps.
+available. Discuss operational relevance with experts. An association between
+weather and a measurement does not establish a cause, treatment outcome or cost.
 
 ## Rules for agents
 
-- Follow `AGENTS.md`, the staged playbooks in `.agents/skills/`, and the team's
-  branch-and-PR workflow. Read the local `DATA_AUDIT.md` and `DECISIONS.md` when
-  available; do not assume those private files exist in a fresh clone.
-- Inspect the actual data before implementing; do not assume a flow column, peer
-  set, input meaning, labels, operating limits or suitable external data.
-- Work locally with partner data. Never commit, publish, or send the raw data or
-  access key to external services. Delete partner data after the event unless the
-  partner agrees otherwise in writing.
-- Keep reusable logic outside notebooks and the app, preserve raw inputs, and
-  record seeds, configuration, splits, metrics, artifacts and exact run commands.
-- The provided export is historical and day-granular. Do not call it a live feed
-  or claim intraday detection, causality, real-world accuracy, false-alarm
-  reduction or operational savings without evidence.
+- Follow `AGENTS.md` and the staged playbooks. Read `data/tai_work/DATA_AUDIT.md`,
+  `data/tai_work/DECISIONS.md`, `data/tai_work/HANDOFF.md`, `history_detector/DECISIONS.md` and
+  `history_detector/HANDOFF.md`.
+- Inspect data and confirm meanings; never invent labels, operating limits,
+  performance, confidence or physical causes.
+- Preserve raw inputs and provenance. Keep reusable logic outside the app and
+  notebooks; record configuration, splits, package versions and run commands.
+- Do not commit or publish partner data, derived sensitive details or the access
+  key. Delete partner data after the event unless the partner agrees otherwise
+  in writing.
+- The supplied export is historical and day-granular. Do not describe the
+  detector as live, infer intraday detection, or assume readings were available
+  at the start of their stated day.
 
-**Expected outcome:** a practical prototype that helps an operator understand and
-prioritise unusual measurements, with reproducible tests, a clear demonstration,
-and honest limits on what is known.
+**Expected outcome:** a practical decision-support prototype that helps an
+operator prioritise unusual measurements, with transparent evidence, recorded
+validation and honest limitations.

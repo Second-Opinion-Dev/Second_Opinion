@@ -11,8 +11,8 @@ neighbours)? are anomalies/events visible, what do they look like, how long do t
 which sensors are redundant, faulty or flatlined? what are the spatial/temporal coverage gaps?
 
 Rules: a handful of informative plots, each answering a stated question; note findings and their
-implications in `DECISIONS.md` / `DATA_AUDIT.md`; flag anything that changes the framing.
+implications in `data/tai_work/DECISIONS.md` / `data/tai_work/DATA_AUDIT.md`; flag anything that changes the framing.
 Notebooks are fine for exploration, but move reusable code into modules.
 
 For TAI, the reproducible descriptive reports and exploratory slice are documented in
-`docs/tai/HANDOFF.md`. The slice and any comparison groups require expert confirmation.
+`data/tai_work/HANDOFF.md`. The slice and any comparison groups require expert confirmation.

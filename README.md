@@ -8,7 +8,7 @@ would want to keep developing.
 ## Status
 
 **Hackathon data available.** The team is working on the TAI Second Opinion proposal; see
-`idea.md`, `DATA_AUDIT.md`, and `docs/tai/HANDOFF.md` for current evidence and limitations.
+`idea.md`, `data/tai_work/DATA_AUDIT.md`, and `data/tai_work/HANDOFF.md` for current evidence and limitations.
 
 | | |
 | --- | --- |
@@ -22,34 +22,33 @@ would want to keep developing.
 ## Repository layout
 
 ```text
-data/                Supplied challenge materials and data (raw/ is never edited in place)
-src/                 Reusable code: data, features, models, evaluation, explainability
-src/tai/             TAI download verification, data preparation and analysis scripts
-tests/               Focused automated checks
-docs/tai/            TAI handoff, expert questions and work log
-app/                 Streamlit demo
-notebooks/           Exploration only
-artifacts/, reports/ Generated outputs (git-ignored)
-DATA_AUDIT.md        What the data is and its quality
-DECISIONS.md         What we tried and chose, and why
-AGENTS.md            Instructions for AI coding agents
-.agents/             Agent context, staged skills and templates
-requirements.txt     Python dependencies
+data/                         Downloaded partner data (ignored by Git)
+data/tai_work/scripts/        TAI download, preparation and analysis scripts
+data/tai_work/tests/          Focused automated checks
+data/tai_work/                TAI audit, decisions, handoff, questions and work log
+history_detector/             Provisional history-only anomaly detector, its decisions and handoff
+src/                          Other reusable code as the project grows
+app/, notebooks/              Demo and exploration, when needed
+artifacts/, reports/          Generated outputs (git-ignored)
+AGENTS.md                     Instructions for AI coding agents
+.agents/                      Agent context, staged skills and templates
+requirements.txt              Python dependencies
 ```
 
-For TAI setup, commands and private output locations, see `docs/tai/HANDOFF.md`.
+For TAI setup, commands and private output locations, see `data/tai_work/HANDOFF.md`.
 
 ## Working as a team
 
 - One person, one item, one branch: `<name>-<work>` (e.g. `joshua-setup-fixes`).
 - Open a PR into `main` when the item is done; a teammate reviews and merges. No direct commits
   to `main`. Details: `.agents/skills/branch-and-pr/SKILL.md`.
-- `data/` is git-ignored: partner rules forbid committing or sharing the data (and the API key),
+- Partner data in `data/` is git-ignored; only explicitly listed TAI code and docs are tracked.
+  Partner rules forbid committing or sharing the data and API key,
   so each teammate downloads their own copy: copy `data/.env.example` to `data/.env`, add the key
   from the briefing, then run `python3 data/download.py [agv|tai|vle ...]` (no argument = all).
   Never edit raw files in place, and delete the data
   after the event unless the partner agrees otherwise in writing.
-- Log consequential choices in `DECISIONS.md` so we don't re-try rejected ideas.
+- Log consequential choices in `data/tai_work/DECISIONS.md` so we don't re-try rejected ideas.
 
 ## Working with AI agents
 
@@ -76,3 +75,10 @@ Work inside the WSL filesystem (`~/`) rather than `/mnt/d` for speed. To make Cl
 auto-discover the skills: `mkdir -p .claude && ln -s ../.agents/skills .claude/skills`.
 
 Exact run commands (training, evaluation, app) will be added here as they exist.
+
+## Provisional TAI history detector
+
+`history_detector/history_detector.py` implements a history-only rolling median/MAD
+detector for an exploratory measurement slice. It has not been evaluated or
+calibrated. Read `history_detector/HANDOFF.md` for the private-data setup, run
+commands, limitations and testing/baseline-comparison handoff.
