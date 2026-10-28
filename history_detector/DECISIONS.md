@@ -40,3 +40,43 @@ definitions and units remain unconfirmed by TAI; this does not cover all oxygen
 or ammonium measurements. Existing per-run review budgets are not a shared
 operator budget across groups. Store data, models and results locally. See both
 handoffs for selection, commands, testing, provenance and limitations.
+
+## Team decisions: no plant comparison, one operator per plant — 28 October 2026
+
+The team decided not to compare plants: they differ geographically and in
+timing. Each plant has its own operator who rarely sees other plants, so review
+budgets and rankings are per plant, never one list across all plants.
+
+## Detector logic fixes after QC — 28 October 2026
+
+A QC run showed the fixed 3.5 threshold flagged 15.5% of influent readings
+(95% upward), zero-MAD meters went unscored (so stuck sensors were invisible),
+tiny meters received extreme scores, flagged values quickly became normal, and
+each flagged day counted separately. Changes, each configurable:
+
+- Calibrate above/below thresholds **per series** on its own data up to 2023 to
+  a 1% workload assumption, split equally between directions, never below 2.0.
+  Series with too little calibration data use the median of other series. A
+  first attempt pooled one threshold per group; on full influent data the most
+  erratic meters pushed the upward threshold to about 93 spreads for everyone,
+  so pooling was replaced.
+- Floor the spread at 5% of the absolute median.
+- Clip values entering later history to median ± 3.5 spreads.
+- Add stuck (7 days after a varying window), dropout (zero after a window
+  without zeros) and negative rules, independent of the threshold.
+- Count a valid row as ambiguous only when another valid row shares its date.
+- Group flagged days into cases (one-day gap allowed) and rank them within each
+  plant: rules first, then length, then peak score.
+- Isolation Forest: replace the threshold-dependent prior-flag fraction with the
+  prior mean deviation; add relative level, zero and repeat features; compare
+  budgets per plant per day; break ties on numeric source rows.
+- Add `synthetic_faults.py` to compare legacy and revised settings on artificial
+  faults in copies of 2025 data.
+
+The 1% target, 5% floor, 3.5 clip limit and 7 stuck days are assumptions to
+review with TAI and operators. Synthetic-fault results are not real-world
+accuracy. Keep the forest only if it outperforms the revised detector on
+comparable evidence. A 30-point smoke run (see `HANDOFF.md`) showed far better
+stuck and dropout detection at about a seventh of the legacy workload, but most
+moderate influent spikes and drifts were missed; the target rate is a
+workload–sensitivity trade-off to settle with operators.
