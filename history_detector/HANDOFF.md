@@ -22,12 +22,21 @@ or repeated metadata point IDs, unmatched source-file provenance and unit
 mismatches. It checks the metadata selection, but metadata meanings and the
 literal installation join remain unconfirmed by TAI.
 
-The exploratory filter is case-insensitive for description and input type:
-`ProductDescription = Influent`, `QuantityDescription = Volume`,
-`ParameterDescription = Niet van toepassing`, `Unit = m3`, `InputType = scada`.
-This is not an expert-approved incoming-flow dataset. Do not generalise its
-results to other measurements, units or input types; confirm with TAI that this
-selection measures what the team thinks it does.
+The `--measurement` option selects one exploratory metadata group per run.
+Descriptions and input types are compared case-insensitively; units are matched
+exactly and never converted. The default `influent_volume` preserves the original
+selection:
+
+| Group | Product | Quantity | Parameter | Unit | Input | State |
+| --- | --- | --- | --- | --- | --- | --- |
+| `influent_volume` | Influent | Volume | Niet van toepassing | m3 | scada | Any, as in the original selection |
+| `oxygen` | Actief slib | (massa)Concentratie | zuurstof | mg/l | scada | niet van toepassing |
+| `ammonium` | Actief slib | (massa)Concentratie | ammonium | mg/l | scada | uitgedrukt in Stikstof |
+
+The new groups are deliberately narrower than all oxygen and ammonium points,
+which also have other products, units, input types and expression bases. None is
+an expert-approved measurement definition. Confirm with TAI what each measures,
+its operational importance and reporting period before making claims.
 
 ## Algorithm and decisions
 
@@ -66,6 +75,8 @@ download is under `data/tai/extracted`:
 ```bash
 python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
 python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
 ```
 
 If prepared data already exists, reuse it and skip the first command. Do not
@@ -73,8 +84,9 @@ overwrite existing outputs: use a new empty output path for each run. The full
 preparation pass needs substantial time and disk for `working.sqlite` and
 compressed files. Other teammates should substitute their local private paths.
 
-Optional flags: `--window-days 28 --minimum-history 14 --threshold 3.5`. `run_info.json`
-records settings, package versions, the source preparation summary and counts.
+Optional flags: `--measurement influent_volume|oxygen|ammonium`, `--window-days 28`,
+`--minimum-history 14`, and `--threshold 3.5`. `run_info.json` records the exact
+selection, settings, package versions, the source preparation summary and counts.
 `history_scores.csv.gz` includes original dates, values, units, source file/row,
 process and selected-point descriptions, preparation flags, history days, median,
 MAD, score, nullable flag, direction, status and explanation. If `run_info.json` is absent, the run did not finish;

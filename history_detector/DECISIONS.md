@@ -25,3 +25,18 @@ false-alarm costs. The baseline remains independently runnable, and no peer
 comparison is used. See `../isolation_forest/HANDOFF.md` for run commands,
 comparison definitions, results location and limitations. Do not claim an
 improvement or operational accuracy without expert-reviewed outcomes.
+
+## Add exploratory oxygen and ammonium cohorts — 28 October 2026
+
+Keep the existing influent-volume selection as the default. Add separate
+metadata-defined SCADA groups for active-sludge oxygen concentration in mg/l
+with state not applicable, and active-sludge ammonium concentration in mg/l
+expressed in nitrogen. Preserve each point's history and train a separate
+Isolation Forest for each group; keep each plant's history separate, do not mix
+units, materials or states within the new groups, and do not interpret raw
+scores from different models as comparable. Each forest pools normalised
+features across selected points. The literal metadata
+definitions and units remain unconfirmed by TAI; this does not cover all oxygen
+or ammonium measurements. Existing per-run review budgets are not a shared
+operator budget across groups. Store data, models and results locally. See both
+handoffs for selection, commands, testing, provenance and limitations.

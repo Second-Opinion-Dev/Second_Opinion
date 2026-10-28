@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 
 from isolation_forest.model import (Config, FEATURES, SERIES, add_features, fit_model,
-                                    select_daily_budget, split_labels)
-from history_detector.history_detector import DetectorConfig, QUALITY_FLAGS, score_series
+                                    select_daily_budget, split_labels, validate_selection)
+from history_detector.history_detector import (DetectorConfig, MEASUREMENTS, QUALITY_FLAGS,
+                                               score_series, select_points)
 
 
 def fixture(days=40, start='2022-01-01', point='fixture-point'):
@@ -102,6 +103,45 @@ class ModelTest(unittest.TestCase):
                               'candidate': [1, 1, 0.1, 0, 0.2, 99]})
         chosen = select_daily_budget(frame, 'candidate', 1)
         self.assertEqual(chosen.tolist(), [False, True, False, False, True, False])
+
+
+class MeasurementSelectionTest(unittest.TestCase):
+    def test_three_independent_cohorts_exclude_wrong_unit_state_and_input(self):
+        rows = []
+        for name, definition in MEASUREMENTS.items():
+            row = {'MeasurementPointID': name, 'source_file': 'fixture',
+                   'StateDescription': 'niet van toepassing', **definition}
+            rows.append(row)
+        oxygen_wrong_unit = dict(rows[1], MeasurementPointID='wrong-unit', Unit='%')
+        ammonium_wrong_state = dict(rows[2], MeasurementPointID='wrong-state',
+                                    StateDescription='uitgedrukt in stikstof / opgeloste fractie')
+        oxygen_manual = dict(rows[1], MeasurementPointID='manual', InputType='hand')
+        volume_other_state = dict(rows[0], MeasurementPointID='volume-other-state', StateDescription='other')
+        metadata = pd.DataFrame(rows + [oxygen_wrong_unit, ammonium_wrong_state, oxygen_manual, volume_other_state])
+        for name in MEASUREMENTS:
+            selected = select_points(metadata, name)
+            expected = [name, 'volume-other-state'] if name == 'influent_volume' else [name]
+            self.assertEqual(selected.MeasurementPointID.tolist(), expected)
+        self.assertEqual(select_points(metadata).MeasurementPointID.tolist(), ['influent_volume', 'volume-other-state'])
+        with self.assertRaises(ValueError):
+            select_points(metadata, 'other')
+        with self.assertRaises(ValueError):
+            select_points(pd.concat([metadata, metadata.iloc[[0]]], ignore_index=True))
+
+    def test_forest_rejects_mixed_measurements_and_preserves_legacy_selection(self):
+        info = {'selection': MEASUREMENTS['oxygen']}
+        frame = pd.DataFrame([MEASUREMENTS['oxygen']])
+        validate_selection(frame, info)
+        wrong = frame.copy()
+        wrong.loc[0, 'ParameterDescription'] = 'ammonium'
+        with self.assertRaises(ValueError):
+            validate_selection(wrong, info)
+        wrong = frame.copy()
+        wrong.loc[0, 'StateDescription'] = 'different basis'
+        with self.assertRaises(ValueError):
+            validate_selection(wrong, info)
+        validate_selection(pd.DataFrame([MEASUREMENTS['influent_volume']]),
+                           {'selection': MEASUREMENTS['influent_volume']})
 
 
 if __name__ == '__main__':
