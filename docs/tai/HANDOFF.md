@@ -10,14 +10,15 @@ From the repository root, on Windows PowerShell:
 
 ```powershell
 python -m pip install pandas
-python tai_redownload.py --output '../tai-redownload' --previous-manifest '../hackathon-downloads/download-manifest.json'
-python tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
-python tai_verify.py '../tai-analysis/pipeline-redownload'
-python tai_sequence_report.py '../tai-analysis/pipeline-redownload'
-python tai_metadata_report.py '../tai-analysis/pipeline-redownload'
-python tai_installation_report.py '../tai-analysis/pipeline-redownload'
-python tai_candidate_slice.py '../tai-analysis/pipeline-redownload'
-python tai_review_candidates.py '../tai-analysis/pipeline-redownload'
+python src/tai/tai_redownload.py --output '../tai-redownload' --previous-manifest '../hackathon-downloads/download-manifest.json'
+python src/tai/tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
+python src/tai/tai_verify.py '../tai-analysis/pipeline-redownload'
+python src/tai/tai_sequence_report.py '../tai-analysis/pipeline-redownload'
+python src/tai/tai_metadata_report.py '../tai-analysis/pipeline-redownload'
+python src/tai/tai_installation_report.py '../tai-analysis/pipeline-redownload'
+python src/tai/tai_candidate_slice.py '../tai-analysis/pipeline-redownload'
+python src/tai/tai_review_candidates.py '../tai-analysis/pipeline-redownload'
+python -m unittest discover -s tests -v
 ```
 
 The downloader requires a new output directory and verifies archive size, official SHA-256 when supplied, extracted sizes, gzip integrity and SHA-256 hashes. It compares the archive hash to the earlier manifest if provided. A changed hash needs investigation, not an automatic corruption conclusion. Do not run it until the key is set. It does not overwrite an existing download.

@@ -7,15 +7,15 @@ would want to keep developing.
 
 ## Status
 
-**Pre-hackathon.** The challenge, data and questions arrive on the day. Fill this section in
-once they do.
+**Hackathon data available.** The team is working on the TAI Second Opinion proposal; see
+`idea.md`, `DATA_AUDIT.md`, and `docs/tai/HANDOFF.md` for current evidence and limitations.
 
 | | |
 | --- | --- |
-| Challenge | TBD |
-| Organisation | TBD |
-| Problem statement | TBD |
-| Approach | TBD |
+| Challenge | Investigate unusual wastewater measurements |
+| Organisation | TAI / Z-info |
+| Problem statement | Help operators prioritise suspicious measurements for validation |
+| Approach | History, eligible peer context and an investigation queue; see `idea.md` |
 | Results | TBD (recorded numbers only) |
 | Demo | TBD |
 
@@ -24,6 +24,9 @@ once they do.
 ```text
 data/                Supplied challenge materials and data (raw/ is never edited in place)
 src/                 Reusable code: data, features, models, evaluation, explainability
+src/tai/             TAI download verification, data preparation and analysis scripts
+tests/               Focused automated checks
+docs/tai/            TAI handoff, expert questions and work log
 app/                 Streamlit demo
 notebooks/           Exploration only
 artifacts/, reports/ Generated outputs (git-ignored)
@@ -34,8 +37,7 @@ AGENTS.md            Instructions for AI coding agents
 requirements.txt     Python dependencies
 ```
 
-Only `AGENTS.md`, `.agents/` and `requirements.txt` exist now. The other folders and docs are
-created as we need them.
+For TAI setup, commands and private output locations, see `docs/tai/HANDOFF.md`.
 
 ## Working as a team
 

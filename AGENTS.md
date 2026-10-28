@@ -2,7 +2,7 @@
 
 ## TAI data work — 28 October 2026
 
-See `TAI_WORK_LOG.md`, `TAI_HANDOFF.md`, and `TAI_QUESTIONS.md` for the current TAI preparation, run commands, decisions, open questions, and incomplete checks. Work on `oindrilla-tai-data-cleaning`, based on fetched main commit `b9151e8`. Keep the API key, partner data, and private reports out of Git. Preserve the user's existing checkout and raw data.
+See `docs/tai/WORK_LOG.md`, `docs/tai/HANDOFF.md`, and `docs/tai/QUESTIONS.md` for TAI preparation, run commands, decisions, open questions, and incomplete checks. Keep the API key, partner data, and private reports out of Git. Preserve raw data.
 
 Read by Codex, Claude Code and other coding agents. Everything lives at the repo root.
 
@@ -37,5 +37,5 @@ Work on a branch named `<name>-<work>` and open a PR into `main` when done. Foll
 
 ## Environment
 
-The current workspace uses Windows PowerShell and Python; `TAI_HANDOFF.md` records
+The current workspace uses Windows PowerShell and Python; `docs/tai/HANDOFF.md` records
 the commands used here. WSL can also be used with appropriate paths and `python3`.

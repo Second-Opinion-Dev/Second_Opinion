@@ -5,7 +5,7 @@ import unittest
 
 import pandas as pd
 
-from tai_pipeline import run
+from src.tai.tai_pipeline import run
 
 
 class PipelineTest(unittest.TestCase):

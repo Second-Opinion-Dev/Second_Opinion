@@ -21,4 +21,8 @@ Use quick pandas profiling in a script or notebook; keep reusable loaders in a m
 Explain to the user in plain language what each file and important column appears to be, and
 list unresolved questions (worth asking the organisers on the day).
 
+For the TAI challenge, use the existing scripts under `src/tai/` and the instructions in
+`docs/tai/HANDOFF.md`; consult `DATA_AUDIT.md` and `docs/tai/QUESTIONS.md` before making
+assumptions. Keep partner data, generated reports and access keys local and out of Git.
+
 Done when: `DATA_AUDIT.md` is filled in and the user has the summary.
