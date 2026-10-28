@@ -1,5 +1,9 @@
 # Agent instructions: AISO AI for Water Hackathon
 
+## TAI data work — 28 October 2026
+
+See `TAI_WORK_LOG.md`, `TAI_HANDOFF.md`, and `TAI_QUESTIONS.md` for the current TAI preparation, run commands, decisions, open questions, and incomplete checks. Work on `oindrilla-tai-data-cleaning`, based on fetched main commit `b9151e8`. Keep the API key, partner data, and private reports out of Git. Preserve the user's existing checkout and raw data.
+
 Read by Codex, Claude Code and other coding agents. Everything lives at the repo root.
 
 ## Status
