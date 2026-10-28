@@ -31,7 +31,9 @@ class ResultsTest(unittest.TestCase):
 
     def test_nullable_flags_and_provenance(self):
         data, _, _ = load_metric(self.root, "oxygen")
-        self.assertEqual(data.forest_flag.tolist(), [True, False, None])
+        # Unassessed may be None or pd.NA depending on the pandas version; both mean "not assessed".
+        self.assertEqual(data.forest_flag.tolist()[:2], [True, False])
+        self.assertTrue(pd.isna(data.forest_flag.iloc[2]))
         self.assertEqual(data.iloc[0].case_key, case_key("oxygen", "source", "2"))
         self.assertNotEqual(case_key("oxygen", "source", "2"), case_key("ammonium", "source", "2"))
         self.assertEqual(len(filtered_cases(data, "plant", "2025-01-01", "2025-01-31")), 1)
