@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Second Opinion — Smart Review Queue for Wastewater Plants</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono&display=swap">
+<style>
+:root{--bg:#04090d;--ink:#e9eef0;--mute:#8fa1a8;--line:rgba(233,238,240,.18);--acc:#9fd8ea;
+--sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--serif:"Instrument Serif",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg);scroll-behavior:smooth;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{color:var(--ink);font:300 1rem/1.65 var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+.flow{position:fixed;inset:0;z-index:-1;background:radial-gradient(ellipse at 70% 40%,#0b2a38,#04090d 70%)}
+.flow canvas{position:absolute;inset:0;width:100%;height:100%}
+.flow::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,9,13,.5),rgba(4,9,13,.2) 40%,rgba(4,9,13,.7))}
+body::after{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.09;mix-blend-mode:overlay;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>")}
+.pg{position:fixed;top:0;left:0;height:2px;width:100%;background:var(--acc);transform-origin:0 50%;transform:scaleX(0);z-index:60}
+nav{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top,0px)) 5vw 20px;font:400 .72rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;mix-blend-mode:difference;color:#fff}
+nav div{display:flex;gap:26px}nav a{color:inherit;text-decoration:none;opacity:.8}nav a:hover{opacity:1}
+@media(max-width:760px){nav div{display:none}}
+#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 5vw 5vh;position:relative}
+#hero .top{position:absolute;top:18vh;left:5vw;font:400 .72rem/1.7 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+#hero h1{font-weight:600;text-transform:uppercase;font-size:clamp(3.2rem,14vw,13rem);line-height:.86;letter-spacing:-.045em}
+#hero h1 em{font:italic 400 1em/.86 var(--serif);text-transform:lowercase;letter-spacing:-.02em;color:var(--acc)}
+.tl{max-width:30em;margin-top:3vh;font:italic 400 clamp(1.3rem,2.6vw,2.2rem)/1.2 var(--serif);color:var(--ink)}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:24px;margin-top:5vh;border-top:1px solid var(--line);padding-top:18px;font:400 .72rem/1.7 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.meta b{display:block;color:var(--ink);font-weight:400}
+#hero .top,#hero .meta,#hero .tl{opacity:0;transform:translateY(14px);transition:opacity 1.4s ease 1.2s,transform 1.4s ease 1.2s}
+#hero.go .top,#hero.go .meta,#hero.go .tl{opacity:1;transform:none}
+section.s{max-width:1400px;margin:0 auto;padding:16vh 5vw}
+.k{position:relative;display:flex;justify-content:space-between;gap:20px;padding-top:14px;margin-bottom:7vh;font:400 .72rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.k::before{content:"";position:absolute;top:0;left:0;height:1px;width:100%;background:var(--line);transform:scaleX(0);transform-origin:0 0;transition:transform 1.8s cubic-bezier(.2,.7,.2,1)}
+.k.in::before{transform:none}
+h2{font:400 clamp(2.3rem,6vw,5.6rem)/1 var(--serif);letter-spacing:-.015em;max-width:12em}
+h2 em{color:var(--acc)}
+.p{max-width:38em;color:var(--mute);margin-top:26px;font-size:1.05rem}
+.p b{color:var(--ink);font-weight:500}
+.q{margin-top:8vh;max-width:30em;font:italic 400 clamp(1.4rem,3vw,2.4rem)/1.25 var(--serif);border-left:1px solid var(--acc);padding-left:24px}
+.q small{display:block;margin-top:12px;font:400 .72rem/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.rows{margin-top:8vh;max-width:1000px}
+.row{display:grid;grid-template-columns:1fr 2fr;gap:20px;align-items:baseline;border-top:1px solid var(--line);padding:24px 0}
+.row:last-child{border-bottom:1px solid var(--line)}
+.row b{font:500 clamp(1.5rem,3.4vw,2.8rem)/1.05 var(--sans);letter-spacing:-.035em;text-transform:uppercase}
+.row span{color:var(--mute)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin-top:8vh}
+.col{border-top:1px solid var(--line);padding:22px 28px 40px 0}
+.col small{font:400 .72rem/1 var(--mono);letter-spacing:.16em;color:var(--acc)}
+.col h3{font:500 1.5rem/1.1 var(--sans);text-transform:uppercase;letter-spacing:-.01em;margin:40px 0 10px}
+.col p{color:var(--mute);max-width:24em}
+.h4{margin:9vh 0 0;font:400 .72rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:8vh;border-top:1px solid var(--line)}
+.cmp div{padding:28px 28px 28px 0}
+.cmp small{font:400 .72rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.cmp p{margin-top:12px;font:italic 400 clamp(1.3rem,2.4vw,2rem)/1.2 var(--serif)}
+.cmp div+div p{color:var(--acc)}
+.lit{margin-top:8vh}
+.lit .l{display:grid;grid-template-columns:1.1fr 1.5fr 1.5fr;gap:28px;border-top:1px solid var(--line);padding:24px 0}
+.lit .l:last-child{border-bottom:1px solid var(--line)}
+.lit .l b{font-weight:500;font-size:1.1rem;line-height:1.3}
+.lit .l span{color:var(--mute);font-size:.95rem}
+.lit .l i{display:block;margin-top:6px;font:400 .7rem/1 var(--mono);letter-spacing:.1em;color:var(--acc);font-style:normal}
+.lit .hd{border-top:0;padding:0 0 12px;font:400 .72rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+details{border-top:1px solid var(--line)}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:22px;padding:24px 0;font:500 clamp(1.4rem,3.4vw,2.8rem)/1.05 var(--sans);text-transform:uppercase;letter-spacing:-.03em;transition:padding .5s,color .5s}
+summary::-webkit-details-marker{display:none}
+summary small{font:400 .72rem/1 var(--mono);letter-spacing:.16em;color:var(--acc);min-width:3.4em}
+summary::after{content:"+";margin-left:auto;font:300 1.8rem/1 var(--sans);color:var(--mute);transition:transform .5s}
+details[open] summary::after{transform:rotate(45deg)}
+summary:hover{padding-left:16px;color:var(--acc)}
+details ul{list-style:none;padding:0 0 30px 5.2em;max-width:46em}
+details li{position:relative;padding:5px 0 5px 22px;color:var(--mute)}
+details li::before{content:"";position:absolute;left:0;top:.95em;width:10px;height:1px;background:var(--acc)}
+@media(max-width:760px){details ul{padding-left:0}.row,.cmp,.lit .l{grid-template-columns:1fr}.lit .hd{display:none}}
+.end h2{font:600 clamp(2.6rem,10.5vw,10rem)/.9 var(--sans);text-transform:uppercase;letter-spacing:-.05em;max-width:none;color:transparent;-webkit-text-stroke:1px var(--ink)}
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:12vh;border-top:1px solid var(--line);padding-top:18px;font:400 .72rem/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.foot a{color:var(--ink);text-decoration:none}
+.ch{display:inline-block;overflow:hidden;vertical-align:top;padding:0 .05em .1em;margin:0 -.05em -.1em}
+.ch>span{display:inline-block;transform:translateY(105%);transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
+#hero.go .ch>span,.in .ch>span{transform:none}
+.r{opacity:0;transform:translateY(22px);transition:opacity 1.2s ease,transform 1.2s ease}
+.r.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.r{opacity:1;transform:none}.ch>span{transform:none}#hero .top,#hero .meta,#hero .tl{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="flow"></div><div class="pg" id="pg"></div>
+<nav><a href="#hero">Second Opinion</a><div><a href="#problem">Problem</a><a href="#solution">Solution</a><a href="#history">History</a><a href="#novelty">AI</a><a href="#evaluation">Evaluation</a><a href="#result">Dashboard</a><a href="#steps">Next</a></div></nav>
+
+<header id="hero">
+  <div class="top">TAI / Z-info challenge<br>AISO Hackathon · AI for Water</div>
+  <h1 id="ttl">Second<br><em>opinion</em></h1>
+  <p class="tl">Spot unusual measurements, compare the evidence, and decide what to check first.</p>
+  <div class="meta"><div><b>Product</b>Investigation support</div><div><b>For</b>Wastewater plant operators</div><div><b>Exploring</b>Six measurement groups</div><div><b>Scroll</b>↓</div></div>
+</header>
+
+<section class="s" id="problem">
+  <div class="k"><span>01 // Problem</span><span>No labels, many readings</span></div>
+  <h2 class="r">Which unusual reading is <em>worth checking?</em></h2>
+  <div class="rows r">
+    <div class="row"><b>No labels</b><span>The data does not tell us which readings are real problems.</span></div>
+    <div class="row"><b>More than limits</b><span>A reading can be unusual for its own point even when it is within a fixed limit. Applicable historical limits are not available to verify missed alerts.</span></div>
+    <div class="row"><b>Review takes time</b><span>Every unnecessary investigation costs an operator attention and time.</span></div>
+  </div>
+  <p class="q r">~30,000 new measurement points a day across ~321 plants.<small>TAI mentor briefing figures, not verified dataset counts</small></p>
+</section>
+
+<section class="s" id="solution">
+  <div class="k"><span>02 // End-to-end pipeline</span><span>Historical, day-level data</span></div>
+  <h2 class="r">From measurements <em>to review.</em></h2>
+  <div class="cols r">
+    <div class="col"><small>01 // INPUT</small><h3>Prepare</h3><p>Preserve original records and source information. Select six exploratory groups: influent volume, oxygen, ammonium, nitrate, suspended solids and temperature.</p></div>
+    <div class="col"><small>02 // DETECT</small><h3>Score</h3><p>Compare each point with its own history and apply simple data-quality rules.</p></div>
+    <div class="col"><small>03 // ORGANISE</small><h3>Group</h3><p>The history detector groups nearby flagged days into cases and ranks them within each plant.</p></div>
+    <div class="col"><small>04 // REVIEW</small><h3>Investigate</h3><p>A local dashboard shows stored AI flags, historical evidence and a review budget. The operator decides what to check.</p></div>
+  </div>
+  <p class="q r">Six group-specific forests offer a second ranking; the history detector also works on its own.<small>In parallel · experimental AI</small></p>
+</section>
+
+<section class="s" id="history">
+  <div class="k"><span>03 // History detector</span><span>Each point keeps its own history</span></div>
+  <h2 class="r">Learn what is <em>usual here.</em></h2>
+  <div class="cols r">
+    <div class="col"><small>01 // BASELINE</small><h3>Look back</h3><p>Use the previous 28 calendar days, excluding today, with at least 14 valid days. Calculate the median and robust spread.</p></div>
+    <div class="col"><small>02 // EVIDENCE</small><h3>Check today</h3><p>Measure deviation from the baseline. Flag stuck values and unexpected zeros; negative checks exclude temperature.</p></div>
+    <div class="col"><small>03 // OUTPUT</small><h3>Form cases</h3><p>Group nearby flagged days. Rank by rule hits, duration and peak score; preserve reasons and source references.</p></div>
+  </div>
+  <p class="q r">Missing, duplicate or insufficient history can leave a reading unscored; unscored is not normal.<small>Safeguard</small></p>
+  <p class="p r">Thresholds are calibrated per series. The approximately 1% target flag rate is a workload assumption, not a measured false-alarm rate.</p>
+</section>
+
+<section class="s" id="novelty">
+  <div class="k"><span>04 // Experimental AI layer</span><span>No peer comparison</span></div>
+  <h2 class="r">Spot an unusual <em>combination.</em></h2>
+  <div class="cols r">
+    <div class="col"><small>01 // FEATURES</small><h3>Six signals</h3><p>Deviation, daily change, recent deviation, relative level, zero and repeated days.</p></div>
+    <div class="col"><small>02 // MODEL</small><h3>Six forests</h3><p>One Isolation Forest per measurement group looks for uncommon combinations of history-based features.</p></div>
+    <div class="col"><small>03 // ROLE</small><h3>Second view</h3><p>Compare its reading-level ranking with the independent history detector. Scores stay within each group.</p></div>
+  </div>
+  <p class="q r">A higher score means a rarer feature pattern, not a fault probability or diagnosis.<small>Interpretation</small></p>
+</section>
+
+<section class="s" id="evaluation">
+  <div class="k"><span>05 // Evaluation</span><span>Chronological and honest</span></div>
+  <h2 class="r">Compare <em>without guessing.</em></h2>
+  <div class="cols r">
+    <div class="col"><small>TRAIN</small><h3>Through 2023</h3><p>Fit each forest using earlier data, 100 trees and a fixed random seed.</p></div>
+    <div class="col"><small>VALIDATE</small><h3>2024</h3><p>Set the AI alert threshold on validation scores, then keep it fixed.</p></div>
+    <div class="col"><small>HOLDOUT</small><h3>2025</h3><p>Compare rankings on the same eligible readings and review budget.</p></div>
+    <div class="col"><small>LEARN</small><h3>Review</h3><p>Report coverage and workload; expert feedback is needed to judge usefulness.</p></div>
+  </div>
+  <p class="q r">No confirmed labels: no real-world accuracy or false-alarm savings claim.<small>Limits</small></p>
+</section>
+
+<section class="s" id="result">
+  <div class="k"><span>06 // Operator decision</span><span>Evidence, not a diagnosis</span></div>
+  <h2 class="r">Check what <em>matters first.</em></h2>
+  <div class="cols r">
+    <div class="col"><small>01</small><h3>See</h3><p>Review stored AI flags in the local dashboard.</p></div>
+    <div class="col"><small>02</small><h3>Understand</h3><p>Inspect the reading, historical median and source context.</p></div>
+    <div class="col"><small>03</small><h3>Prioritise</h3><p>Set a review budget and keep deferred cases visible for the selected metric.</p></div>
+    <div class="col"><small>04</small><h3>Decide</h3><p>The operator investigates. Review checkboxes are session-only.</p></div>
+  </div>
+  <p class="p r">The dashboard reads precomputed results; it does not run the models live. Its assistant uses stored evidence, not a live AI chatbot. Some examples are fictional and clearly labelled.</p>
+  <p class="p r">A separate dry-weather interface compares published national rainfall with local plant measurements and electricity readings. It does not establish a cause or benefit.</p>
+</section>
+
+<section class="s" id="steps">
+  <div class="k"><span>07 // Future exploration</span><span>From prototype to practice</span></div>
+  <h2 class="r">What comes <em>next.</em></h2>
+  <div class="cols r">
+    <div class="col"><small>01 // WEATHER</small><h3>Dry-weather insights</h3><p>Compare rainfall, electricity and plant readings by week and month when suitable local data is available.</p></div>
+    <div class="col"><small>02 // COVERAGE</small><h3>More parameters</h3><p>Explore extending the models to all 67 parameters, after checking data coverage, units and suitability.</p></div>
+    <div class="col"><small>03 // VALIDATION</small><h3>Operator feedback</h3><p>Review cases with plant experts; test usefulness and alert workload before operational deployment.</p></div>
+    <div class="col"><small>04 // PERFORMANCE</small><h3>Faster runs</h3><p>Investigate long runtimes on large datasets and improve processing efficiency without changing the evidence.</p></div>
+  </div>
+  <p class="p r">Future work requires additional data and expert validation. The current results are provisional and unvalidated.</p>
+</section>
+
+<section class="s end" id="team">
+  <div class="k"><span>Final outcome</span><span>Decision support, honest limits</span></div>
+  <h2 class="r">Check what matters first.</h2>
+  <p class="p r">A practical decision-support tool that helps operators investigate unusual measurements. A flag is a reason to investigate, not a confirmed fault. The operator stays in control.</p>
+  <div class="foot"><span>Second Opinion · TAI / Z-info challenge · AISO Hackathon</span><a href="#hero">Back to top ↑</a></div>
+</section>
+
+<script>
+(function(){
+  // Arrow keys move between the pitch's sections, like a slide presentation.
+  var pitchSections = Array.from(document.querySelectorAll('#hero, section.s'));
+  document.addEventListener('keydown', function(event) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.defaultPrevented) return;
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    var forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
+    var backward = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
+    if (!forward && !backward) return;
+    event.preventDefault();
+    var positions = pitchSections.map(function(section) { return Math.round(section.getBoundingClientRect().top + window.scrollY); });
+    var position = Math.round(window.scrollY);
+    var target;
+    if (forward) target = positions.findIndex(function(top) { return top > position + 4; });
+    else {
+      target = -1;
+      for (var i = positions.length - 1; i >= 0; i--) {
+        if (positions[i] < position - 4) { target = i; break; }
+      }
+    }
+    if (target < 0) target = forward ? positions.length - 1 : 0;
+    window.scrollTo({top: positions[target], behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  });
+  var rm=matchMedia('(prefers-reduced-motion:reduce)').matches,t=document.getElementById('ttl'),hero=document.getElementById('hero'),pg=document.getElementById('pg');
+  function split(el,L){var n=0;el.setAttribute('aria-label',el.textContent.replace(/\s+/g,' ').trim());(function w(node){[].slice.call(node.childNodes).forEach(function(c){
+    if(c.nodeType===3){var f=document.createDocumentFragment();
+      (L?c.textContent.split(''):c.textContent.split(/(\s+)/)).forEach(function(p){if(!p)return;
+        if(/^\s+$/.test(p)){f.appendChild(document.createTextNode(' '));return;}
+        var o=document.createElement('span'),i=document.createElement('span');o.className='ch';o.setAttribute('aria-hidden','true');i.textContent=p;i.style.transitionDelay=(n++*(L?.05:.07))+'s';o.appendChild(i);f.appendChild(o);});
+      node.replaceChild(f,c);}
+    else if(c.nodeName!=='BR')w(c);});})(el);}
+  split(t,true);document.querySelectorAll('h2').forEach(function(h){split(h,false);});
+  setTimeout(function(){hero.classList.add('go');},300);
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('in');});},{threshold:.12});
+  document.querySelectorAll('.r,.k').forEach(function(el){io.observe(el);});
+
+  var fx=document.querySelector('.flow'),c=document.createElement('canvas'),gl=c.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'}),draw=null;
+  if(gl){
+    var fs=`#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 R;uniform float F,P;
+float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n(p);p=p*2.03+vec2(7.1,3.7);a*=.5;}return v;}
+void main(){
+ vec2 uv=gl_FragCoord.xy/R;float asp=R.x/R.y,xa=uv.x*asp;
+ float cx=.7*asp+.03*asp*sin(uv.y*3.+P*9.+F*.05);
+ float hw=mix(.26,.1,smoothstep(0.,.16,P))*clamp(asp*.9,.45,1.);
+ float d=abs(xa-cx)/hw;
+ float m=1.-smoothstep(.55,1.15,d+(fbm(vec2(uv.y*4.+F,xa*3.))-.5)*.35);
+ float sx=xa*30.+(fbm(vec2(xa*2.5,uv.y*1.6+F*.4))-.5)*7.,sy=uv.y*2.4+F;
+ float b=smoothstep(.32,.82,fbm(vec2(sx,sy*.3))*.55+fbm(vec2(sx*1.8+3.,sy*.2+F*1.2))*.45);
+ float fo=fbm(vec2(sx*.45,sy*1.1+F*.7))*fbm(vec2(sx*.28+9.,sy*1.9+F*1.3))*2.6;
+ float foam=smoothstep(.6,1.05,fo)*(.35+.65*smoothstep(.45,1.,d));
+ foam=clamp(foam+smoothstep(.55,1.,uv.y)*(1.-smoothstep(0.,.16,P))*smoothstep(.5,1.,fo)*.8,0.,1.);
+ vec3 deep=vec3(.008,.04,.06),mid=vec3(.04,.26,.34),lt=vec3(.78,.94,.99);
+ vec3 col=mix(deep,mid,b)+lt*pow(b,3.)*.5;col=mix(col,vec3(.96,.99,1.),foam*.85);
+ vec3 bg=deep*.8+vec3(.01,.05,.07)*(1.-uv.y);
+ bg+=vec3(.05,.2,.26)*exp(-pow(max(d-.6,0.)*1.1,2.))*.5;
+ vec3 o=mix(bg,col,m);o*=mix(.5,1.,smoothstep(.05,.7,uv.x));
+ o=o/(1.+o*.2);gl_FragColor=vec4(pow(o,vec3(.92)),1.);
+}`;
+    var sh=function(ty,s){var o=gl.createShader(ty);gl.shaderSource(o,s);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null;};
+    var v=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),f=sh(gl.FRAGMENT_SHADER,fs),pr=gl.createProgram();
+    if(v&&f){gl.attachShader(pr,v);gl.attachShader(pr,f);gl.linkProgram(pr);
+      if(gl.getProgramParameter(pr,gl.LINK_STATUS)){
+        gl.useProgram(pr);gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+        var al=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+        var uR=gl.getUniformLocation(pr,'R'),uF=gl.getUniformLocation(pr,'F'),uP=gl.getUniformLocation(pr,'P');
+        var rs=function(){c.width=Math.max(2,innerWidth*.55|0);c.height=Math.max(2,innerHeight*.55|0);gl.viewport(0,0,c.width,c.height);};rs();addEventListener('resize',rs);
+        fx.appendChild(c);
+        draw=function(F,P){gl.uniform2f(uR,c.width,c.height);gl.uniform1f(uF,F);gl.uniform1f(uP,P);gl.drawArrays(gl.TRIANGLES,0,3);};
+      }}
+  }
+  var F=2,ly=scrollY,vel=0,lt=performance.now();
+  function prog(){return scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight);}
+  function tick(now){var dt=Math.min(.05,(now-lt)/1000);lt=now;vel=vel*.9+(scrollY-ly)*.1;ly=scrollY;
+    F+=(.35+Math.min(Math.abs(vel),30)*.05)*dt;var p=prog();
+    pg.style.transform='scaleX('+p+')';
+    var y=Math.min(scrollY,900);t.style.transform='translate3d(0,'+(y*.2)+'px,0)';t.style.opacity=Math.max(0,1-y/700);
+    if(draw)draw(F,p);requestAnimationFrame(tick);}
+  if(rm){if(draw)draw(2,0);}else requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
