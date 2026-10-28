@@ -70,3 +70,26 @@ AGENTS.md, .agents/          Agent instructions and team workflow
 ```
 
 Partner data, derived outputs, fitted models and credentials must stay local and out of Git. Never modify raw data in place. The briefing restricts data to the hackathon and requires deletion afterwards unless the partner agrees otherwise in writing. Work on a named branch and open a pull request into `main`; see [the team workflow](.agents/skills/branch-and-pr/SKILL.md).
+A stage is skipped when its output is complete and its script, arguments and upstream
+stages are unchanged; these are fingerprinted in `data/tai/pipeline_state.json`. A complete
+download or preparation made before the driver existed is adopted as done. Outputs go to
+`data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`), with one log per stage in `logs/`.
+Nothing is deleted: an output that must be redone is renamed `<name>.old-<timestamp>`
+first. The download stage needs `AISO_API_KEY` (see `data/.env.example`). All outputs are
+private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest discover -s tests -t .`.
+
+## Provisional TAI history detector
+
+`src/history_detector/history_detector.py` implements a history-only rolling median/MAD
+detector for six separate exploratory slices: influent volume and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature.
+It has not been validated against real labels or operator review. Read
+`docs/history_detector/HANDOFF.md` for selection, setup, commands and limitations.
+
+## Experimental Isolation Forest
+
+`src/isolation_forest/model.py` uses prior-history features to rank eligible readings.
+Run a separate forest for each selected slice; it retains the history baseline
+and does not use peer comparisons. The model is
+experimental; no labelled real-world accuracy is established. See
+`docs/isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
+private artifact handling.

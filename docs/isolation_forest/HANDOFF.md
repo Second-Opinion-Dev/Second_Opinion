@@ -14,7 +14,7 @@ from untrusted sources.
 
 Use a complete `src/history_detector/history_detector.py` output directory with
 `run_info.json` and `history_scores.csv.gz`. Select one unconfirmed metadata group
-per run: `influent_volume`, `oxygen`, or `ammonium`; see
+per run: `influent_volume`, `oxygen`, `ammonium`, `nitrate`, `suspended_solids` or `temperature`; see
 `docs/history_detector/HANDOFF.md` for exact product, quantity, unit, state and input
 filters. The program checks that all rows match the recorded selection. Run a
 separate forest for each group; do not mix groups or compare raw scores across

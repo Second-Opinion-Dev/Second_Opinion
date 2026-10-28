@@ -36,8 +36,11 @@ selection:
 | `influent_volume` | Influent | Volume | Niet van toepassing | m3 | scada | Any, as in the original selection |
 | `oxygen` | Actief slib | (massa)Concentratie | zuurstof | mg/l | scada | niet van toepassing |
 | `ammonium` | Actief slib | (massa)Concentratie | ammonium | mg/l | scada | uitgedrukt in Stikstof |
+| `nitrate` | Actief slib | (massa)Concentratie | nitraat | mg/l | scada | uitgedrukt in Stikstof |
+| `suspended_solids` | Actief slib | (massa)Concentratie | Onopgeloste bestandsdelen | g/l | scada | niet van toepassing |
+| `temperature` | Actief slib | Temperatuur | Niet van toepassing | oC | scada | niet van toepassing |
 
-The new groups are deliberately narrower than all oxygen and ammonium points,
+The groups other than influent volume are deliberately narrower than all points of that kind,
 which also have other products, units, input types and expression bases. None is
 an expert-approved measurement definition. Confirm with TAI what each measures,
 its operational importance and reporting period before making claims.
@@ -72,7 +75,7 @@ its operational importance and reporting period before making claims.
 - **Data-quality rules**, independent of the threshold, mark each eligible row:
   `rule_stuck` (the same value on at least 7 consecutive days after a window that
   varied), `rule_dropout` (a zero after a full window without zeros) and
-  `rule_negative` (a negative value; all current groups are non-negative
+  `rule_negative` (a negative value; used for every group except temperature, which can be below zero; the others are non-negative
   quantities). A meter that is constantly zero is not "stuck". Rules apply even
   when the score is unavailable. `--no-rules` disables them.
 - `review_flag` combines the statistical flag and the rules; `flag_reason` lists
@@ -116,7 +119,7 @@ overwrite existing outputs: use a new empty output path for each run. The full
 preparation pass needs substantial time and disk for `working.sqlite` and
 compressed files. Other teammates should substitute their local private paths.
 
-Optional flags: `--measurement influent_volume|oxygen|ammonium`, `--window-days 28`,
+Optional flags: `--measurement influent_volume|oxygen|ammonium|nitrate|suspended_solids|temperature`, `--window-days 28`,
 `--minimum-history 14`, `--scale-floor-fraction 0.05`, `--clip-limit 3.5`,
 `--stuck-days 7`, `--no-rules`, `--calibration-end 2023-12-31`,
 `--target-flag-rate 0.01`, `--threshold X` (fixed, skips calibration),

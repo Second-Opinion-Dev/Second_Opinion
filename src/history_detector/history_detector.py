@@ -7,7 +7,7 @@ faults, compare plants, or establish accuracy. Read docs/history_detector/HANDOF
 
 import argparse
 from collections import Counter, deque
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import json
 import math
 from pathlib import Path
@@ -44,7 +44,25 @@ MEASUREMENTS = {
         'ParameterDescription': 'ammonium', 'Unit': 'mg/l', 'InputType': 'scada',
         'StateDescription': 'uitgedrukt in Stikstof',
     },
+    'nitrate': {
+        'ProductDescription': 'Actief slib', 'QuantityDescription': '(massa)Concentratie',
+        'ParameterDescription': 'nitraat', 'Unit': 'mg/l', 'InputType': 'scada',
+        'StateDescription': 'uitgedrukt in Stikstof',
+    },
+    'suspended_solids': {
+        'ProductDescription': 'Actief slib', 'QuantityDescription': '(massa)Concentratie',
+        'ParameterDescription': 'Onopgeloste bestandsdelen', 'Unit': 'g/l', 'InputType': 'scada',
+        'StateDescription': 'niet van toepassing',
+    },
+    'temperature': {
+        'ProductDescription': 'Actief slib', 'QuantityDescription': 'Temperatuur',
+        'ParameterDescription': 'Niet van toepassing', 'Unit': 'oC', 'InputType': 'scada',
+        'StateDescription': 'niet van toepassing',
+    },
 }
+# Groups whose quantity cannot be negative; only these use the negative-value rule.
+# A temperature in degrees Celsius can legitimately be below zero.
+NONNEGATIVE = {'influent_volume', 'oxygen', 'ammonium', 'nitrate', 'suspended_solids'}
 VALUE_COLUMNS = SERIES_COLUMNS + [
     'SubProcessDescription', 'Date', 'Value', 'source_file', 'source_row', 'parsed_date', 'parsed_value',
 ] + QUALITY_FLAGS
@@ -66,7 +84,7 @@ class DetectorConfig:
     clip_limit: float = 3.5
     stuck_days: int = 7
     rules: bool = True
-    # All current groups (volume, concentrations) cannot be negative.
+    # Set per measurement group by config_for; see NONNEGATIVE.
     nonnegative: bool = True
 
     def validate(self) -> None:
@@ -451,9 +469,15 @@ def threshold_summary(thresholds: Thresholds | SeriesThresholds) -> dict:
             'minimum_calibration_rows': MINIMUM_CALIBRATION_ROWS}
 
 
+def config_for(config: DetectorConfig, measurement: str) -> DetectorConfig:
+    """Apply group-specific settings: the negative rule only for non-negative quantities."""
+    return replace(config, nonnegative=measurement in NONNEGATIVE)
+
+
 def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str = 'influent_volume',
         fixed_threshold: float | None = None, calibration_end: str = '2023-12-31',
         target_flag_rate: float = 0.01, case_gap_days: int = 1, max_points: int | None = None) -> None:
+    config = config_for(config, measurement)
     config.validate()
     prepared, output = prepared.resolve(), output.resolve()
     if prepared == output or prepared in output.parents or output in prepared.parents:
