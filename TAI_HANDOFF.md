@@ -13,6 +13,8 @@ python -m pip install pandas
 python tai_redownload.py --output '../tai-redownload' --previous-manifest '../hackathon-downloads/download-manifest.json'
 python tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
 python tai_sequence_report.py '../tai-analysis/pipeline-redownload'
+python tai_metadata_report.py '../tai-analysis/pipeline-redownload'
+python tai_candidate_slice.py '../tai-analysis/pipeline-redownload'
 ```
 
 The downloader requires a new output directory and verifies archive size, official SHA-256 when supplied, extracted sizes, gzip integrity and SHA-256 hashes. It compares the archive hash to the earlier manifest if provided. A changed hash needs investigation, not an automatic corruption conclusion. Do not run it until the key is set. It does not overwrite an existing download.
@@ -27,6 +29,10 @@ No observation is excluded, averaged, imputed or converted. A flag is not a diag
 
 The sequence report counts calendar gaps between recorded observations, adjacent identical nonblank strings and changes in adjacent unit strings per point, ordered by literal date. It does not establish an expected sampling frequency, identify all flatline periods, or prove gaps are missing readings. Same-date ordering is unspecified; unit changes are candidates for review.
 
-The present scripts are **not yet a complete final handoff**: they do not generate a confirmed analysis slice, a complete join-cardinality report, a data dictionary with confirmed definitions, or a quarantine table. A full-data run and expert review are necessary; retain all records until those are completed. The selected-slice and peer eligibility decisions remain for the team and TAI. No modelling, thresholds, labels or claims of physical cause are produced here.
+The metadata report identifies point IDs with missing, unique or multiple metadata records and estimates join multiplication, describes exploratory combinations of measurement metadata, and creates a dictionary with meanings marked unconfirmed. It does not validate installation joins or prove measurement comparability.
+
+The optional candidate script copies records whose point metadata literally says `Influent` and `Volume` into `exploratory_influent_volume/`. It preserves provenance and does not convert units or deduplicate records. It is an exploratory filter, not a confirmed incoming-flow or modelling dataset; metadata with multiple records per point requires review.
+
+The present scripts are **not yet a complete final handoff**: they do not generate a confirmed analysis slice, a complete installation join-cardinality report, a data dictionary with confirmed definitions, or a quarantine table. A full-data run and expert review are necessary; retain all records until those are completed. The selected-slice and peer eligibility decisions remain for the team and TAI. No modelling, thresholds, labels or claims of physical cause are produced here.
 
 For Sunil: use `cleaned/MeasurementValues` with `point_metadata.csv.gz` only after validating point ID uniqueness and joins. Preserve `source_file`, `source_row`, raw `Date`, `Value`, and `Unit`, parsed fields and quality flags. Check data availability at decision time and fit any preprocessing only on the appropriate training period.
