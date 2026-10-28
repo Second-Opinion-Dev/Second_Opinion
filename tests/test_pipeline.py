@@ -1,18 +1,22 @@
-"""Checks of the pipeline driver's skip, adopt, rerun and failure handling with stub stages."""
+"""Checks of the pipeline driver's skip, adopt, rerun, parallel and failure handling with stub stages."""
 import json
 from pathlib import Path
 import tempfile
+import time
 import unittest
 
 from pipeline import Stage, build_stages, execute
 
-STUB = '''import sys
+# A stub stage: 'fail' exits with an error, 'sleepX' waits X seconds; it records its start and end times.
+STUB = '''import sys, time
 from pathlib import Path
-output = Path(sys.argv[1])
-if sys.argv[2] == 'fail':
+output, setting, start = Path(sys.argv[1]), sys.argv[2], time.time()
+if setting == 'fail':
     sys.exit(3)
+if setting.startswith('sleep'):
+    time.sleep(float(setting[5:]))
 output.mkdir(parents=True, exist_ok=True)
-(output / 'done.txt').write_text(sys.argv[2])
+(output / 'done.txt').write_text(f'{start} {time.time()}')
 '''
 
 
@@ -33,8 +37,39 @@ class DriverTest(unittest.TestCase):
                      lambda: (output / 'done.txt').is_file(), needs=list(needs),
                      code=[self.script], adoptable=adoptable)
 
-    def actions(self, stages, forced=()):
-        return [action for _, action, _ in execute(stages, self.state, list(forced), dry_run=False)]
+    def actions(self, stages, forced=(), jobs=1):
+        return [action for _, action, _ in execute(stages, self.state, list(forced), dry_run=False, jobs=jobs)]
+
+    def times(self, name):
+        start, end = (self.root / name / 'done.txt').read_text().split()
+        return float(start), float(end)
+
+    def test_independent_stages_run_at_the_same_time(self):
+        stages = [self.stage(name, setting='sleep1') for name in ('a', 'b', 'c')]
+        began = time.monotonic()
+        self.assertEqual(self.actions(stages, jobs=3), ['run'] * 3)
+        self.assertLess(time.monotonic() - began, 2.5)  # one at a time would take over 3 seconds
+        spans = [self.times(name) for name in ('a', 'b', 'c')]
+        self.assertLess(max(start for start, _ in spans), min(end for _, end in spans))
+
+    def test_parallel_run_waits_for_needed_stages(self):
+        stages = [self.stage('up', setting='sleep0.5'), self.stage('side', setting='sleep0.5'),
+                  self.stage('down', needs=['up'])]
+        self.actions(stages, jobs=3)
+        self.assertGreaterEqual(self.times('down')[0], self.times('up')[1])
+
+    def test_parallel_failure_finishes_running_stages_and_blocks_downstream(self):
+        stages = [self.stage('broken', setting='fail'), self.stage('other', setting='sleep0.5'),
+                  self.stage('after', needs=['broken'])]
+        with self.assertRaises(SystemExit) as raised:
+            self.actions(stages, jobs=2)
+        self.assertIn('broken failed', str(raised.exception))
+        recorded = [key.split('|')[0] for key in json.loads(self.state.read_text())]
+        self.assertEqual(recorded, ['other'])
+        self.assertFalse((self.root / 'after').exists())
+        # The next run skips what finished and retries only the rest.
+        fixed = [self.stage('broken'), self.stage('other', setting='sleep0.5'), self.stage('after', needs=['broken'])]
+        self.assertEqual(self.actions(fixed, jobs=2), ['run', 'skip', 'run'])
 
     def test_second_run_skips_and_changed_settings_rerun_downstream(self):
         stages = [self.stage('up'), self.stage('down', needs=['up'])]

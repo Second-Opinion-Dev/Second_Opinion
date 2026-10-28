@@ -91,7 +91,15 @@ python3 src/pipeline.py                               # run everything not yet d
 python3 src/pipeline.py --smoke 30                    # quick run on 30 points per group
 python3 src/pipeline.py --with-faults                 # also run the slow fault comparison
 python3 src/pipeline.py --groups oxygen --force detect  # redo detector and forest for oxygen
+python3 src/pipeline.py --jobs 3                      # run up to three independent stages at once
 ```
+
+With `--jobs N`, each stage starts as soon as the stages it needs have finished, up to N at
+a time; only the driver writes the state file. If a stage fails, no new stage starts, the
+running ones finish and are recorded, and the run stops; rerunning resumes from there.
+Each detector holds its whole group in memory, so check free RAM before raising N. A
+20-point smoke run of all six groups took 64 s with `--jobs 3`, against about 3 minutes
+of stage time run one at a time.
 
 A stage is skipped when its output is complete and its script, arguments and upstream
 stages are unchanged; these are fingerprinted in `data/tai/pipeline_state.json`. A complete
