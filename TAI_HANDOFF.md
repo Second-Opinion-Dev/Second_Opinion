@@ -12,6 +12,7 @@ From the repository root, on Windows PowerShell:
 python -m pip install pandas
 python tai_redownload.py --output '../tai-redownload' --previous-manifest '../hackathon-downloads/download-manifest.json'
 python tai_pipeline.py --raw '../tai-redownload/extracted' --output '../tai-analysis/pipeline-redownload'
+python tai_verify.py '../tai-analysis/pipeline-redownload'
 python tai_sequence_report.py '../tai-analysis/pipeline-redownload'
 python tai_metadata_report.py '../tai-analysis/pipeline-redownload'
 python tai_installation_report.py '../tai-analysis/pipeline-redownload'
@@ -39,6 +40,6 @@ The review-candidate script copies blank, parse-failure and unmatched-point reco
 
 The installation report checks literal origin and destination codes against the `Installation` field, including blanks and potential row multiplication. TAI must confirm this is the correct relationship before treating the join as authoritative.
 
-The present scripts are **not yet a complete final handoff**: they do not generate a confirmed analysis slice or a data dictionary with confirmed definitions. A full-data run and expert review are necessary; retain all records until those are completed. The selected-slice and peer eligibility decisions remain for the team and TAI. No modelling, thresholds, labels or claims of physical cause are produced here.
+The full dataset has been processed locally, but the handoff still needs expert review: the scripts do not generate a confirmed analysis slice or a data dictionary with confirmed definitions. Retain all records. The selected-slice and peer eligibility decisions remain for the team and TAI. No modelling, thresholds, labels or claims of physical cause are produced here.
 
 For Sunil: use `cleaned/MeasurementValues` with `point_metadata.csv.gz` only after validating point ID uniqueness and joins. Preserve `source_file`, `source_row`, raw `Date`, `Value`, and `Unit`, parsed fields and quality flags. Check data availability at decision time and fit any preprocessing only on the appropriate training period.
