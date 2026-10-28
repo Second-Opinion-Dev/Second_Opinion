@@ -20,7 +20,15 @@ from results import METRICS, DEMO_METRICS, DEMO_PLANT, demo_metric, evidence, fi
 from measurement_table import scored_measurement_table
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_RESULTS = ROOT / "data" / "tai" / "second_opinion_sample"
+# Full run of src/pipeline.py, relative to the repository root; the earlier sample ZIP
+# layout is still accepted via the sidebar.
+DEFAULT_RESULTS = Path("data") / "tai" / "pipeline"
+
+
+def results_path(text):
+    """Resolve a sidebar path; relative paths start at the repository root, not the working directory."""
+    path = Path(text).expanduser()
+    return path if path.is_absolute() else ROOT / path
 st.set_page_config(page_title="Second Opinion", page_icon="💧", layout="wide")
 
 WORDS = {
@@ -256,11 +264,11 @@ st.radio("Navigatie / Navigation", ["daily", "queue", "explore", "assistant"], f
 
 with st.sidebar:
     st.subheader(tr("filters"))
-    root_text = st.text_input(tr("results"), value=str(DEFAULT_RESULTS), key="results_root")
-    root = Path(root_text).expanduser()
+    root_text = st.text_input(tr("results"), value=DEFAULT_RESULTS.as_posix(), key="results_root")
+    root = results_path(root_text)
     fingerprint = source_fingerprint(root)
 
-frames, errors = {}, {}
+frames, errors, demo_used = {}, {}, False
 for item in METRICS:
     try:
         frames[item] = cached_load(str(root), item, fingerprint)[0]
@@ -269,6 +277,7 @@ for item in METRICS:
         frames[item] = pd.DataFrame(columns=["InstallationCodeOrigin", "MeasurementPointID", "date", "parsed_value", "Unit", "forest_flag", "ai_score", "history_median", "source_file", "source_row", "case_key"])
         if item in DEMO_METRICS:
             frames[item] = demo_metric(item)
+            demo_used = True
             if isinstance(exc, FileNotFoundError):
                 del errors[item]
 if len(errors) == len(METRICS):
@@ -276,7 +285,8 @@ if len(errors) == len(METRICS):
     st.stop()
 if errors:
     st.sidebar.warning(tr("resultsbad") + ": " + ", ".join(tr(m) for m in errors))
-st.sidebar.caption(tr("demo_hint"))
+if demo_used:  # only when a metric fell back to the fictional example plant
+    st.sidebar.caption(tr("demo_hint"))
 plants = sorted(set().union(*(set(f.InstallationCodeOrigin.dropna().astype(str)) for f in frames.values())))
 if not plants:
     st.info(tr("no_records")); st.stop()

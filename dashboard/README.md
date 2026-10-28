@@ -3,10 +3,10 @@
 Run from the repository root after installing `requirements.txt`:
 
 ```bash
-python3 -m streamlit run rough_dashboard/app.py --server.address 127.0.0.1
+python3 -m streamlit run dashboard/app.py --server.address 127.0.0.1
 ```
 
-The default input is `data/tai/second_opinion_sample/`. Extract the team's supplied ZIP there, without committing the data. Choose another local results root in the sidebar to use a completed full run with the same directory layout. The source cache is invalidated when the manifest or scored files change. The original exploratory dashboard remains in `legacy_app.py`.
+The default input is `data/tai/pipeline/`, the output of a full `python3 src/pipeline.py` run. To use the team's earlier sample ZIP instead, extract it under `data/tai/second_opinion_sample/` (never commit it) and enter that path as the results root in the sidebar. Relative paths are resolved from the repository root. The source cache is invalidated when the manifest or scored files change. The original exploratory dashboard remains in `legacy_app.py`.
 
 ## What is connected
 
@@ -29,7 +29,7 @@ The assistant uses deterministic text composed from the selected stored reading,
 The separate dry-weather exploration can be started independently:
 
 ```bash
-python3 -m streamlit run rough_dashboard/dry_weather.py --server.address 127.0.0.1 --server.port 8502
+python3 -m streamlit run dashboard/dry_weather.py --server.address 127.0.0.1 --server.port 8502
 ```
 
 It reads the local raw TAI export and shows three-year median daily readings for one selected plant's volume, oxygen, ammonium and kWh measurement points. It keeps each selected process context and unit separate, excludes repeated-date records, and reports usable-day counts. kWh is an additional descriptive measurement, not an anomaly-detection target; a meter's identity, meaning and whether it measures total consumption must be confirmed with TAI. The national annual rainfall bars are published KNMI automatic-station averages for 2023–2025, linked on the page; they are not plant-local rainfall. This is a descriptive comparison, not a plant-specific weather analysis. It does not infer dry days, physical causes, heater or fan use, biological benefit, costs or savings. Peer comparison is outside the team's current scope.
@@ -37,7 +37,7 @@ It reads the local raw TAI export and shows three-year median daily readings for
 Run the integration and existing detector checks from the repository root:
 
 ```bash
-python3 -m unittest discover -s rough_dashboard -p 'test_*.py' -v
+python3 -m unittest discover -s dashboard -p 'test_*.py' -v
 python3 -m unittest -v history_detector.test_history_detector isolation_forest.test_model
 ```
 

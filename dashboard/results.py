@@ -12,6 +12,16 @@ METRICS = ("influent_volume", "oxygen", "ammonium", "temperature", "nitrate", "s
 DEMO_METRICS = ("temperature", "nitrate", "suspended_solids")
 DEMO_PLANT = "NL.07.VOORBEELD — RWZI Voorbeeld"
 REQUIRED = {"InstallationCodeOrigin", "MeasurementPointID", "parsed_date", "parsed_value", "Unit", "source_file", "source_row", "ai_status", "ai_score", "ai_flag", "history_median", "score_status", "review_flag"}
+# Only the columns the app uses are read: full runs hold millions of rows, and reading
+# every column as text exhausted memory. Repeated labels are categories, scores are floats.
+CONTEXT = ("InstallationCodeOrigin", "MeasurementPointID", "SubProcessCodeOrigin", "ProcessCode", "SubProcessDescription",
+           "Product", "ProductBalance", "InstallationCodeDestination", "SubProcessDestination", "Unit", "source_file",
+           "ai_status", "score_status")
+NUMERIC = ("parsed_value", "history_median", "history_scale", "anomaly_score", "ai_score", "signed_deviation_log",
+           "day_change_log", "prior_deviation_log_mean", "relative_level_log", "is_zero", "repeat_days_log")
+TEXT = ("Value", "source_row", "parsed_date", "ai_flag", "review_flag")
+COLUMNS = set(CONTEXT) | set(NUMERIC) | set(TEXT)
+DTYPES = {**{c: "category" for c in CONTEXT}, **{c: "float64" for c in NUMERIC}, **{c: "string" for c in TEXT}}
 
 
 def parse_flag(value):
@@ -79,7 +89,8 @@ def load_metric(root: Path, metric: str):
         raise ValueError(f"Metric metadata mismatch: {metric}")
     if info.get("status") != "provisional_unvalidated" or history_info.get("status") not in {"smoke_run_partial", "provisional_unvalidated"}:
         raise ValueError(f"Incomplete or unsupported run status: {metric}")
-    frame = pd.read_csv(scores_path, compression="gzip", dtype="string", low_memory=False)
+    frame = pd.read_csv(scores_path, compression="gzip", usecols=lambda column: column in COLUMNS,
+                        dtype=DTYPES, low_memory=False)
     missing = REQUIRED - set(frame.columns)
     if missing:
         raise ValueError(f"Missing fields for {metric}: {', '.join(sorted(missing))}")
