@@ -149,8 +149,11 @@ flag means **unscored**, not normal. The data and scores stay local and out of G
 
 ## Running the detector
 
-With a local TAI download and the required Python packages, run from the project
-root. Both output directories must be new or empty and must remain private:
+The simplest route is `python3 pipeline.py`, which runs download, preparation,
+verification, the detector and the forest for each group, skipping stages that are
+already done; see the README. To run the stages by hand, use a local TAI download
+and the required Python packages, from the project root. Both output directories
+must be new or empty and must remain private:
 
 ```bash
 python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history

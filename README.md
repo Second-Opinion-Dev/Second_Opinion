@@ -74,7 +74,27 @@ python -m pip install -r requirements.txt
 Work inside the WSL filesystem (`~/`) rather than `/mnt/d` for speed. To make Claude Code
 auto-discover the skills: `mkdir -p .claude && ln -s ../.agents/skills .claude/skills`.
 
-Exact run commands (training, evaluation, app) will be added here as they exist.
+## Run the whole pipeline
+
+`pipeline.py` runs every stage as a separate process through its existing script:
+download → prepare → verify → detector → Isolation Forest, per measurement group, with
+the synthetic-fault comparison optional. It skips stages that are already done:
+
+```bash
+python3 pipeline.py --plan                        # show what would run or be skipped
+python3 pipeline.py                               # run everything not yet done
+python3 pipeline.py --smoke 30                    # quick run on 30 points per group
+python3 pipeline.py --with-faults                 # also run the slow fault comparison
+python3 pipeline.py --groups oxygen --force detect  # redo detector and forest for oxygen
+```
+
+A stage is skipped when its output is complete and its script, arguments and upstream
+stages are unchanged; these are fingerprinted in `data/tai/pipeline_state.json`. A complete
+download or preparation made before the driver existed is adopted as done. Outputs go to
+`data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`), with one log per stage in `logs/`.
+Nothing is deleted: an output that must be redone is renamed `<name>.old-<timestamp>`
+first. The download stage needs `AISO_API_KEY` (see `data/.env.example`). All outputs are
+private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest test_pipeline`.
 
 ## Provisional TAI history detector
 
