@@ -26,6 +26,7 @@ data/                         Downloaded partner data (ignored by Git)
 data/tai_work/scripts/        TAI download, preparation and analysis scripts
 data/tai_work/tests/          Focused automated checks
 data/tai_work/                TAI audit, decisions, handoff, questions and work log
+history_detector/             Provisional history-only anomaly detector, its decisions and handoff
 src/                          Other reusable code as the project grows
 app/, notebooks/              Demo and exploration, when needed
 artifacts/, reports/          Generated outputs (git-ignored)
@@ -74,3 +75,10 @@ Work inside the WSL filesystem (`~/`) rather than `/mnt/d` for speed. To make Cl
 auto-discover the skills: `mkdir -p .claude && ln -s ../.agents/skills .claude/skills`.
 
 Exact run commands (training, evaluation, app) will be added here as they exist.
+
+## Provisional TAI history detector
+
+`history_detector/history_detector.py` implements a history-only rolling median/MAD
+detector for an exploratory measurement slice. It has not been evaluated or
+calibrated. Read `history_detector/HANDOFF.md` for the private-data setup, run
+commands, limitations and testing/baseline-comparison handoff.
