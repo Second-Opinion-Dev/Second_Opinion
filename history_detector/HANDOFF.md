@@ -96,6 +96,11 @@ their own private data outputs or receive them through an authorised channel.
 
 ## Next teammate: testing, baseline comparison and results
 
+An experimental Isolation Forest layer and focused artificial-fixture checks
+have since been added. See `isolation_forest/HANDOFF.md` for its chronological
+comparison and outstanding evaluation; the historical execution log above
+describes the original baseline implementation, before those checks.
+
 1. Read `idea.md`, `data/tai_work/DATA_AUDIT.md`, `data/tai_work/HANDOFF.md`, and this document.
    Confirm input meaning, time availability, duplicate rules and relevant
    operational points with TAI. Determine whether real validation limits or

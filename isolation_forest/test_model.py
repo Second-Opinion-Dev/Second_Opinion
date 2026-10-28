@@ -1,0 +1,108 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+import joblib
+import numpy as np
+import pandas as pd
+
+from isolation_forest.model import (Config, FEATURES, SERIES, add_features, fit_model,
+                                    select_daily_budget, split_labels)
+from history_detector.history_detector import DetectorConfig, QUALITY_FLAGS, score_series
+
+
+def fixture(days=40, start='2022-01-01', point='fixture-point'):
+    """Artificial records, never derived from partner data."""
+    dates = pd.date_range(start, periods=days, freq='D')
+    frame = pd.DataFrame({column: ['fixture'] * days for column in SERIES})
+    frame['MeasurementPointID'] = point
+    frame['Unit'] = 'm3'
+    frame['parsed_date'] = dates.astype(str)
+    frame['parsed_value'] = [str(10 + (i % 9)) for i in range(days)]
+    frame['source_file'] = 'fixture.csv.gz'
+    frame['source_row'] = [str(i + 2) for i in range(days)]
+    for column in QUALITY_FLAGS:
+        frame[column] = 'False'
+    return score_series(frame, DetectorConfig())
+
+
+class FeaturesTest(unittest.TestCase):
+    def test_causal_features_ignore_future_and_other_points(self):
+        original = fixture()
+        first = add_features(original)
+        changed = original.copy()
+        changed.loc[changed.index[-1], 'parsed_value'] = '999999'
+        second = add_features(changed)
+        pd.testing.assert_frame_equal(first.loc[:38, FEATURES], second.loc[:38, FEATURES])
+        other = fixture(point='another-point')
+        combined = add_features(pd.concat([original, other], ignore_index=True))
+        pd.testing.assert_frame_equal(first[FEATURES], combined.loc[:39, FEATURES])
+
+    def test_unscored_zero_mad_gap_and_ambiguous_days_stay_unscored(self):
+        frame = fixture()
+        # Original history status must never be silently promoted to AI normal.
+        frame.loc[25, 'score_status'] = 'unscored_zero_mad'
+        frame.loc[25, 'anomaly_flag'] = pd.NA
+        frame.loc[29, 'parsed_value'] = ''
+        frame.loc[29, 'anomaly_flag'] = pd.NA
+        frame.loc[30, 'parsed_date'] = 'not-a-date'
+        duplicate = frame.loc[[35]].copy()
+        duplicate['source_row'] = '999'
+        result = add_features(pd.concat([frame, duplicate], ignore_index=True))
+        self.assertEqual(result.loc[25, 'ai_status'], 'unscored_history_detector')
+        self.assertEqual(result.loc[26, 'ai_status'], 'unscored_missing_prior_day')
+        self.assertEqual(result.loc[29, 'ai_status'], 'unscored_invalid_history_features')
+        self.assertEqual(result.loc[30, 'ai_status'], 'unscored_invalid_history_features')
+        self.assertEqual(result.loc[35, 'ai_status'], 'unscored_ambiguous_same_day')
+        self.assertEqual(result.loc[40, 'ai_status'], 'unscored_ambiguous_same_day')
+        self.assertEqual(result.loc[36, 'ai_status'], 'unscored_missing_prior_day')
+        self.assertTrue(result.loc[[25, 26, 29, 30, 35, 36, 40], FEATURES].isna().all().all())
+
+    def test_history_detector_excludes_duplicate_dates_and_zero_mad(self):
+        frame = fixture()
+        original = frame.drop(columns=['history_days', 'history_median', 'history_mad', 'anomaly_score',
+                                       'anomaly_flag', 'direction', 'score_status', 'explanation'])
+        duplicated = pd.concat([original, original.iloc[[20]]], ignore_index=True)
+        scored = score_series(duplicated, DetectorConfig())
+        self.assertEqual(scored.loc[20, 'score_status'], 'unscored_ambiguous_same_day')
+        self.assertEqual(scored.loc[40, 'score_status'], 'unscored_ambiguous_same_day')
+        constant = original.copy()
+        constant['parsed_value'] = '1'
+        constant_result = score_series(constant, DetectorConfig())
+        self.assertEqual(constant_result.loc[14, 'score_status'], 'unscored_zero_mad')
+        self.assertTrue(pd.isna(constant_result.loc[14, 'anomaly_flag']))
+
+
+class ModelTest(unittest.TestCase):
+    def test_split_fit_reproducibility_and_reload(self):
+        artificial = pd.concat([fixture(80, '2022-01-01'), fixture(80, '2024-01-01'),
+                                fixture(80, '2025-01-01')], ignore_index=True)
+        data = add_features(artificial)
+        config = Config(trees=10, max_samples=30)
+        data['split'] = split_labels(data['_date'], config)
+        model1, threshold1 = fit_model(data, config)
+        changed_test = data.copy()
+        changed_test.loc[changed_test['split'].eq('test'), FEATURES] = 1e8
+        model2, threshold2 = fit_model(changed_test, config)
+        eligible = data.loc[data.ai_status.eq('eligible'), FEATURES]
+        np.testing.assert_allclose(model1.score_samples(eligible), model2.score_samples(eligible))
+        self.assertEqual(threshold1, threshold2)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'trusted.joblib'
+            joblib.dump({'model': model1, 'threshold': threshold1, 'feature_order': FEATURES}, path)
+            reloaded = joblib.load(path)
+            np.testing.assert_allclose(model1.score_samples(eligible), reloaded['model'].score_samples(eligible))
+            self.assertEqual(threshold1, reloaded['threshold'])
+
+    def test_daily_budget_ties_and_eligible_population(self):
+        frame = pd.DataFrame({'_date': pd.to_datetime(['2025-01-01'] * 4 + ['2025-01-02'] * 2),
+                              'ai_status': ['eligible'] * 5 + ['unscored_history_detector'],
+                              'source_file': ['b', 'a', 'c', 'd', 'e', 'f'],
+                              'source_row': ['1'] * 6,
+                              'candidate': [1, 1, 0.1, 0, 0.2, 99]})
+        chosen = select_daily_budget(frame, 'candidate', 1)
+        self.assertEqual(chosen.tolist(), [False, True, False, False, True, False])
+
+
+if __name__ == '__main__':
+    unittest.main()
