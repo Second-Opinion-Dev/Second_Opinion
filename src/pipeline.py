@@ -39,7 +39,7 @@ SCRIPTS = {
     'forest': SRC / 'isolation_forest' / 'model.py',
     'faults': SRC / 'history_detector' / 'synthetic_faults.py',
 }
-GROUPS = ('influent_volume', 'oxygen', 'ammonium')
+GROUPS = ('influent_volume', 'oxygen', 'ammonium', 'nitrate', 'suspended_solids', 'temperature')
 TABLES = ('Installations', 'MeasurementPoints', 'MeasurementValues')
 
 

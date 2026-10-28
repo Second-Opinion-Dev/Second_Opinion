@@ -4,9 +4,10 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from history_detector.history_detector import (LEGACY_CONFIG, QUALITY_FLAGS, SERIES_COLUMNS,
+from history_detector.history_detector import (LEGACY_CONFIG, MEASUREMENTS, QUALITY_FLAGS, SERIES_COLUMNS,
                                                DetectorConfig, Thresholds, apply_thresholds,
-                                               build_cases, calibrate_thresholds, score_series)
+                                               build_cases, calibrate_thresholds, config_for,
+                                               score_series, select_points)
 from history_detector.synthetic_faults import FAULT_DAYS, eligible_positions, inject
 
 FIXED = Thresholds(3.5, 3.5)
@@ -104,6 +105,23 @@ class RuleTest(unittest.TestCase):
     def test_rules_can_be_disabled(self):
         result = score_series(series(varying(20) + [0.0, -1.0]), DetectorConfig(rules=False), FIXED)
         self.assertFalse(result[['rule_stuck', 'rule_dropout', 'rule_negative']].any().any())
+
+
+class GroupSettingsTest(unittest.TestCase):
+    def test_negative_rule_only_for_non_negative_groups(self):
+        values = varying(20) + [-1.0]
+        for group, expected in (('nitrate', True), ('temperature', False)):
+            result = score_series(series(values), config_for(DetectorConfig(), group), FIXED)
+            self.assertEqual(bool(result.loc[20, 'rule_negative']), expected, group)
+
+    def test_new_groups_select_on_stripped_metadata(self):
+        rows = [{'MeasurementPointID': name, 'source_file': 'fixture', 'StateDescription': '', **definition}
+                for name, definition in MEASUREMENTS.items()]
+        solids = next(row for row in rows if row['MeasurementPointID'] == 'suspended_solids')
+        solids['ParameterDescription'] += ' '  # the export has a trailing space here
+        metadata = pd.DataFrame(rows)
+        for name in ('nitrate', 'suspended_solids', 'temperature'):
+            self.assertEqual(select_points(metadata, name)['MeasurementPointID'].tolist(), [name])
 
 
 class AmbiguityTest(unittest.TestCase):

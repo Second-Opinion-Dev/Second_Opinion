@@ -80,3 +80,13 @@ comparable evidence. A 30-point smoke run (see `HANDOFF.md`) showed far better
 stuck and dropout detection at about a seventh of the legacy workload, but most
 moderate influent spikes and drifts were missed; the target rate is a
 workload–sensitivity trade-off to settle with operators.
+
+## Add nitrate, suspended solids and temperature groups — 28 October 2026
+
+To represent more of the plant, add three activated-sludge SCADA groups: nitrate
+(mg/l, expressed in nitrogen), suspended solids (`Onopgeloste bestandsdelen`,
+g/l) and temperature (°C). Among SCADA points reporting on at least 90% of days
+for three or more years, they cover 151, 180 and 184 plants. Electricity and
+wastewater volume cover more plants but have about 3–4 million readings each,
+largely pump sub-meters, so they were left out for run time. The negative-value
+rule applies to every group except temperature. Meanings remain unconfirmed by TAI.
