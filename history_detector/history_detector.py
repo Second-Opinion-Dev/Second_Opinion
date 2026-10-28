@@ -27,8 +27,24 @@ QUALITY_FLAGS = [
 ]
 METADATA_COLUMNS = [
     'MeasurementPointID', 'ProductDescription', 'QuantityDescription',
-    'ParameterDescription', 'Unit', 'InputType', 'source_file',
+    'ParameterDescription', 'Unit', 'InputType', 'StateDescription', 'source_file',
 ]
+MEASUREMENTS = {
+    'influent_volume': {
+        'ProductDescription': 'Influent', 'QuantityDescription': 'Volume',
+        'ParameterDescription': 'Niet van toepassing', 'Unit': 'm3', 'InputType': 'scada',
+    },
+    'oxygen': {
+        'ProductDescription': 'Actief slib', 'QuantityDescription': '(massa)Concentratie',
+        'ParameterDescription': 'zuurstof', 'Unit': 'mg/l', 'InputType': 'scada',
+        'StateDescription': 'niet van toepassing',
+    },
+    'ammonium': {
+        'ProductDescription': 'Actief slib', 'QuantityDescription': '(massa)Concentratie',
+        'ParameterDescription': 'ammonium', 'Unit': 'mg/l', 'InputType': 'scada',
+        'StateDescription': 'uitgedrukt in Stikstof',
+    },
+}
 VALUE_COLUMNS = SERIES_COLUMNS + [
     'SubProcessDescription', 'Date', 'Value', 'source_file', 'source_row', 'parsed_date', 'parsed_value',
 ] + QUALITY_FLAGS
@@ -47,7 +63,7 @@ class DetectorConfig:
             raise ValueError('threshold must be a finite positive number')
 
 
-def select_points(metadata: pd.DataFrame) -> pd.DataFrame:
+def select_points(metadata: pd.DataFrame, measurement: str = 'influent_volume') -> pd.DataFrame:
     """Select the proposed exploratory slice; its semantics are unconfirmed."""
     missing = set(METADATA_COLUMNS) - set(metadata.columns)
     if missing:
@@ -56,14 +72,14 @@ def select_points(metadata: pd.DataFrame) -> pd.DataFrame:
         raise ValueError('Point metadata contains blank point identifiers')
     if metadata['MeasurementPointID'].duplicated().any():
         raise ValueError('Point metadata contains duplicate identifiers; resolve before scoring')
-    selected = metadata[
-        metadata['ProductDescription'].str.strip().str.casefold().eq('influent')
-        & metadata['QuantityDescription'].str.strip().str.casefold().eq('volume')
-        & metadata['ParameterDescription'].str.strip().str.casefold().eq('niet van toepassing')
-        & metadata['Unit'].str.strip().eq('m3')
-        & metadata['InputType'].str.strip().str.casefold().eq('scada')
-    ].copy()
-    return selected
+    if measurement not in MEASUREMENTS:
+        raise ValueError(f'Unknown measurement group: {measurement}')
+    mask = pd.Series(True, index=metadata.index)
+    for field, expected in MEASUREMENTS[measurement].items():
+        # Match units exactly; never silently mix or convert units.
+        actual = metadata[field].str.strip()
+        mask &= actual.eq(expected) if field == 'Unit' else actual.str.casefold().eq(expected.casefold())
+    return metadata.loc[mask].copy()
 
 
 def score_series(frame: pd.DataFrame, config: DetectorConfig) -> pd.DataFrame:
@@ -133,7 +149,7 @@ def score_series(frame: pd.DataFrame, config: DetectorConfig) -> pd.DataFrame:
     return result.drop(columns=['_date', '_number'])
 
 
-def run(prepared: Path, output: Path, config: DetectorConfig) -> None:
+def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str = 'influent_volume') -> None:
     config.validate()
     prepared, output = prepared.resolve(), output.resolve()
     if prepared == output or prepared in output.parents or output in prepared.parents:
@@ -150,7 +166,7 @@ def run(prepared: Path, output: Path, config: DetectorConfig) -> None:
     if output.exists() and any(output.iterdir()):
         raise ValueError('Output directory must be empty; choose a new path')
     metadata = pd.read_csv(metadata_path, dtype=str, keep_default_na=False)
-    selected = select_points(metadata)
+    selected = select_points(metadata, measurement)
     if selected.empty:
         raise ValueError('No points match the exploratory selection')
     selected_ids = set(selected['MeasurementPointID'])
@@ -176,7 +192,7 @@ def run(prepared: Path, output: Path, config: DetectorConfig) -> None:
             raise ValueError('A selected point occurs outside its matching metadata file')
         if not frame['Unit'].eq(frame['MeasurementPointID'].map(meta_units)).all():
             raise ValueError('Value and point metadata units differ; review before scoring')
-        for column in ('ProductDescription', 'QuantityDescription', 'ParameterDescription', 'InputType'):
+        for column in ('ProductDescription', 'QuantityDescription', 'ParameterDescription', 'InputType', 'StateDescription'):
             frame[column] = frame['MeasurementPointID'].map(selected_metadata[column])
         parts = [score_series(group, config) for _, group in
                  frame.groupby(SERIES_COLUMNS, dropna=False, sort=False)]
@@ -192,9 +208,9 @@ def run(prepared: Path, output: Path, config: DetectorConfig) -> None:
     run_info = {
         'status': 'provisional_unvalidated',
         'input_preparation_summary': str(prepared / 'summary.json'),
-        'selection': {'ProductDescription': 'Influent', 'QuantityDescription': 'Volume',
-                      'ParameterDescription': 'Niet van toepassing', 'Unit': 'm3', 'InputType': 'scada'},
-        'selection_semantics': 'exploratory; not confirmed as comparable incoming flow',
+        'measurement': measurement,
+        'selection': MEASUREMENTS[measurement],
+        'selection_semantics': 'exploratory; exact operational meaning not confirmed by TAI',
         'config': asdict(config), 'scale_factor': 1.4826,
         'counts': dict(counts), 'pandas_version': pd.__version__, 'numpy_version': np.__version__,
         'limitations': ['No peer comparison or model evaluation performed.',
@@ -212,10 +228,12 @@ def main() -> None:
     parser.add_argument('--output', type=Path, required=True, help='New or empty private output directory')
     parser.add_argument('--window-days', type=int, default=28)
     parser.add_argument('--minimum-history', type=int, default=14)
+    parser.add_argument('--measurement', choices=sorted(MEASUREMENTS), default='influent_volume',
+                        help='Exploratory metadata group; defaults to the original influent volume slice')
     parser.add_argument('--threshold', type=float, default=3.5,
                         help='Provisional robust score threshold, not validated')
     args = parser.parse_args()
-    run(args.prepared, args.output, DetectorConfig(args.window_days, args.minimum_history, args.threshold))
+    run(args.prepared, args.output, DetectorConfig(args.window_days, args.minimum_history, args.threshold), args.measurement)
 
 
 if __name__ == '__main__':

@@ -173,6 +173,21 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_selection(frame: pd.DataFrame, info: dict) -> None:
+    """Reject a mixed or incomplete cohort; one forest is fitted per input run."""
+    selection = info.get('selection')
+    required = {'ProductDescription', 'QuantityDescription', 'ParameterDescription', 'Unit', 'InputType'}
+    if not isinstance(selection, dict) or not required.issubset(selection):
+        raise ValueError('History run selection is missing required cohort metadata')
+    for field, expected in selection.items():
+        if field not in frame:
+            raise ValueError(f'History output is missing selection field: {field}')
+        actual = frame[field].astype(str).str.strip()
+        matches = actual.eq(expected) if field == 'Unit' else actual.str.casefold().eq(str(expected).casefold())
+        if not matches.all():
+            raise ValueError(f'History output mixes measurement definitions in {field}')
+
+
 def run(history_dir: Path, output: Path, config: Config) -> None:
     config.validate()
     history_dir, output = history_dir.resolve(), output.resolve()
@@ -189,6 +204,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     source = pd.read_csv(input_path, dtype=str, keep_default_na=False)
     if len(source) != info.get('counts', {}).get('selected_rows'):
         raise ValueError('History output row count does not match its completion marker')
+    validate_selection(source, info)
     data = add_features(source)
     data['split'] = split_labels(data['_date'], config)
     model, threshold = fit_model(data, config)
@@ -209,11 +225,13 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     output.mkdir(parents=True, exist_ok=True)
     bundle = {'model': model, 'threshold': threshold, 'config': asdict(config),
               'feature_order': FEATURES, 'versions': versions,
+              'measurement': info.get('measurement', 'influent_volume'),
               'history_config': info.get('config'), 'history_selection': info.get('selection')}
     joblib.dump(bundle, output / 'isolation_forest.joblib')
     data.drop(columns=['_date']).to_csv(output / 'scored_records.csv.gz', index=False, compression='gzip')
     manifest = {'status': 'provisional_unvalidated', 'config': asdict(config), 'feature_order': FEATURES,
                 'threshold': threshold, 'versions': versions, 'history_config': info.get('config'),
+                'measurement': info.get('measurement', 'influent_volume'),
                 'history_selection': info.get('selection'), 'history_input_sha256': sha256(input_path),
                 'history_info_sha256': sha256(info_path),
                 'split_counts': {str(k): int(v) for k, v in data['split'].value_counts().items()},

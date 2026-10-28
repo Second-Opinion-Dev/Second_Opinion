@@ -13,8 +13,12 @@ from untrusted sources.
 ## Input and features
 
 Use a complete `history_detector/history_detector.py` output directory with
-`run_info.json` and `history_scores.csv.gz`. The source selection is the existing
-unconfirmed `Influent` / `Volume` / `m3` / `scada` / `Niet van toepassing` slice.
+`run_info.json` and `history_scores.csv.gz`. Select one unconfirmed metadata group
+per run: `influent_volume`, `oxygen`, or `ammonium`; see
+`history_detector/HANDOFF.md` for exact product, quantity, unit, state and input
+filters. The program checks that all rows match the recorded selection. Run a
+separate forest for each group; do not mix groups or compare raw scores across
+their independently fitted models.
 The program verifies the completion status and row count and records SHA-256
 hashes of the input files in the local output. It retains all source rows,
 including history-detector status, quality flags and provenance.
@@ -67,6 +71,10 @@ same eligible rows. Selection ranks all eligible rows, including those below a
 method's fixed threshold; it is a retrospective day-level comparison and does
 not assume simultaneous or real-time availability. Ties can be arbitrary. This
 counts readings, not grouped incidents; deferred or unscored does not mean safe.
+The budget applies to each separate measurement run. It is not a shared
+cross-measurement operator budget; displaying all three queues can present up
+to three times that many readings per day. Model scores across separate forests
+are not calibrated to a common scale.
 
 ## Run and outputs
 
@@ -76,6 +84,12 @@ From the repo root, after running the history detector:
 python3 -B isolation_forest/model.py \
   --history-dir data/tai/history_scores \
   --output data/tai/isolation_forest_run1
+python3 -B isolation_forest/model.py \
+  --history-dir data/tai/history_oxygen \
+  --output data/tai/isolation_oxygen
+python3 -B isolation_forest/model.py \
+  --history-dir data/tai/history_ammonium \
+  --output data/tai/isolation_ammonium
 python3 -B -m unittest -v isolation_forest.test_model
 ```
 

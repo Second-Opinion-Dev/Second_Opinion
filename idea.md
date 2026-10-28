@@ -65,17 +65,18 @@ The preparation preserves raw fields, source file and row, parsed values and
 quality flags. The detector requires unique, nonblank point IDs, matching source
 files and matching point/value units; it refuses partial preparation output.
 
-The initial exploratory slice uses these literal metadata fields:
+Each run selects one exploratory group, all labelled `scada`:
 
-- `ProductDescription`: `Influent`
-- `QuantityDescription`: `Volume`
-- `ParameterDescription`: `Niet van toepassing`
-- `Unit`: `m3`
-- `InputType`: `scada`
+| Group | Product | Quantity | Parameter | Unit | State |
+| --- | --- | --- | --- | --- | --- |
+| `influent_volume` (default) | Influent | Volume | Niet van toepassing | m3 | Any |
+| `oxygen` | Actief slib | (massa)Concentratie | zuurstof | mg/l | niet van toepassing |
+| `ammonium` | Actief slib | (massa)Concentratie | ammonium | mg/l | uitgedrukt in Stikstof |
 
-TAI has not yet confirmed that these points are comparable incoming-flow
-measurements, or what their reporting period and input type mean. Do not
-extrapolate this selection to all plants or measurement types.
+The additional groups cover only these exact metadata combinations, not every
+oxygen or ammonium point. TAI has not confirmed what the readings represent,
+their reporting period, units or operational comparability. Do not extrapolate
+to all plants or measurement types. See `history_detector/HANDOFF.md`.
 
 ### 2. Keep each history separate
 
@@ -131,6 +132,8 @@ root. Both output directories must be new or empty and must remain private:
 ```bash
 python3 data/tai_work/scripts/tai_pipeline.py --raw data/tai/extracted --output data/tai/prepared_history
 python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_scores
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_oxygen --measurement oxygen
+python3 history_detector/history_detector.py --prepared data/tai/prepared_history --output data/tai/history_ammonium --measurement ammonium
 ```
 
 Reuse a completed preparation directory instead of rerunning the first command.
@@ -157,12 +160,18 @@ flag fraction uses at least three scored readings in the previous seven days;
 the current day is excluded. Points with missing, ambiguous or unsuitable
 history stay unscored rather than being filled with normal-looking values.
 
-The forest is trained through 2023 with a fixed seed. Its provisional threshold
+Train a separate forest for each measurement group; each pools normalised
+features across that group's points, while their historical features remain
+point-specific. There is no peer comparison. Do not compare raw scores from
+separately fitted forests as if they were calibrated on one scale.
+
+Each forest is trained through 2023 with a fixed seed. Its provisional threshold
 is the 99th percentile of 2024 validation scores; 2025 is held out. A higher AI
 score means a less common combination of features, not a fault probability.
 Separately, a retrospective comparison ranks the same eligible readings for each
-method with an example budget of 10 readings per day. The budget ranking can
-include readings below the fixed alert threshold. Counts and overlap do not
+method with an example budget of 10 readings per day **per measurement group**.
+It is not a shared operator budget across the three groups. The budget ranking
+can include readings below the fixed alert threshold. Counts and overlap do not
 establish which method is more useful; real labels or expert review are needed.
 See `isolation_forest/HANDOFF.md` for commands, private outputs and limitations.
 
