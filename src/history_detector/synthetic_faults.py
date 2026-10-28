@@ -18,11 +18,13 @@ import pandas as pd
 try:  # imported from the repository root, e.g. by tests
     from history_detector.history_detector import (
         LEGACY_CONFIG, LEGACY_THRESHOLDS, SCALE_FACTOR, SERIES_COLUMNS, DetectorConfig, apply_thresholds,
-        build_cases, calibrate_thresholds, load_selected, score_all, score_series, threshold_summary)
+        build_cases, calibrate_thresholds, config_for, load_selected, score_all, score_series,
+        threshold_summary)
 except ModuleNotFoundError:  # run as a script from this folder
     from history_detector import (
         LEGACY_CONFIG, LEGACY_THRESHOLDS, SCALE_FACTOR, SERIES_COLUMNS, DetectorConfig, apply_thresholds,
-        build_cases, calibrate_thresholds, load_selected, score_all, score_series, threshold_summary)
+        build_cases, calibrate_thresholds, config_for, load_selected, score_all, score_series,
+        threshold_summary)
 
 # Fault length in days and how each one changes the copied values.
 FAULT_DAYS = {'spike': 1, 'dropout': 3, 'stuck': 10, 'drift': 28}
@@ -32,10 +34,10 @@ DRIFT_SPREADS = 4.0   # linear drift reaching four robust spreads after 28 days
 WARMUP_DAYS = 60
 
 
-def variants(calibration_end: str, target_flag_rate: float) -> dict:
-    revised = DetectorConfig()
+def variants(calibration_end: str, target_flag_rate: float, measurement: str) -> dict:
+    revised = config_for(DetectorConfig(), measurement)
     return {
-        'legacy': (LEGACY_CONFIG, None),
+        'legacy': (config_for(LEGACY_CONFIG, measurement), None),
         'revised': (revised, (calibration_end, target_flag_rate)),
         'revised_no_clip': (replace(revised, clip_limit=0.0), (calibration_end, target_flag_rate)),
     }
@@ -98,7 +100,7 @@ def run(prepared: Path, output: Path, measurement: str, seed: int, sample: int,
         raise ValueError('Output directory must be empty; choose a new path')
     frame = load_selected(prepared, measurement, max_points)
     settings = {}
-    for name, (config, calibration) in variants(calibration_end, target_flag_rate).items():
+    for name, (config, calibration) in variants(calibration_end, target_flag_rate, measurement).items():
         scored = score_all(frame, config)
         thresholds = LEGACY_THRESHOLDS if calibration is None else calibrate_thresholds(scored, *calibration)
         settings[name] = {'config': config, 'thresholds': thresholds,

@@ -76,9 +76,12 @@ Each run selects one exploratory group, all labelled `scada`:
 | `influent_volume` (default) | Influent | Volume | Niet van toepassing | m3 | Any |
 | `oxygen` | Actief slib | (massa)Concentratie | zuurstof | mg/l | niet van toepassing |
 | `ammonium` | Actief slib | (massa)Concentratie | ammonium | mg/l | uitgedrukt in Stikstof |
+| `nitrate` | Actief slib | (massa)Concentratie | nitraat | mg/l | uitgedrukt in Stikstof |
+| `suspended_solids` | Actief slib | (massa)Concentratie | Onopgeloste bestandsdelen | g/l | niet van toepassing |
+| `temperature` | Actief slib | Temperatuur | Niet van toepassing | oC | niet van toepassing |
 
 The additional groups cover only these exact metadata combinations, not every
-oxygen or ammonium point. TAI has not confirmed what the readings represent,
+point of that kind. TAI has not confirmed what the readings represent,
 their reporting period, units or operational comparability. Do not extrapolate
 to all plants or measurement types. See `docs/history_detector/HANDOFF.md`.
 

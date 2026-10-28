@@ -104,7 +104,7 @@ private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest
 ## Provisional TAI history detector
 
 `src/history_detector/history_detector.py` implements a history-only rolling median/MAD
-detector for separate exploratory influent-volume, oxygen and ammonium slices.
+detector for six separate exploratory slices: influent volume and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature.
 It has not been validated against real labels or operator review. Read
 `docs/history_detector/HANDOFF.md` for selection, setup, commands and limitations.
 
