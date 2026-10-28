@@ -19,10 +19,12 @@ from sklearn.ensemble import IsolationForest
 SERIES = ['InstallationCodeOrigin', 'MeasurementPointID', 'SubProcessCodeOrigin',
           'ProcessCode', 'Product', 'ProductBalance', 'InstallationCodeDestination',
           'SubProcessDestination', 'Unit']
-FEATURES = ['signed_deviation_log', 'day_change_log', 'prior_flag_fraction']
-REQUIRED = SERIES + ['parsed_date', 'parsed_value', 'history_median', 'history_mad',
-                     'anomaly_score', 'anomaly_flag', 'score_status', 'source_file',
-                     'source_row']
+RULES = ['rule_stuck', 'rule_dropout', 'rule_negative']
+FEATURES = ['signed_deviation_log', 'day_change_log', 'prior_deviation_log_mean',
+            'relative_level_log', 'is_zero', 'repeat_days_log']
+REQUIRED = SERIES + ['parsed_date', 'parsed_value', 'history_median', 'history_scale',
+                     'anomaly_score', 'anomaly_flag', 'repeat_days', 'score_status',
+                     'source_file', 'source_row'] + RULES
 
 
 @dataclass(frozen=True)
@@ -31,7 +33,8 @@ class Config:
     validation_end: str = '2024-12-31'
     test_end: str = '2025-12-31'
     validation_flag_fraction: float = 0.01
-    daily_review_budget: int = 10
+    # Each plant has its own operator, so the comparison budget applies per plant per day.
+    plant_daily_budget: int = 1
     seed: int = 42
     trees: int = 100
     max_samples: int = 256
@@ -43,7 +46,7 @@ class Config:
             raise ValueError('Split endpoints must be strictly increasing')
         if not 0 < self.validation_flag_fraction < 1:
             raise ValueError('Validation flag fraction must be between 0 and 1')
-        if self.daily_review_budget < 1 or self.trees < 1 or self.max_samples < 1:
+        if self.plant_daily_budget < 1 or self.trees < 1 or self.max_samples < 1:
             raise ValueError('Budget, trees and max_samples must be positive')
 
 
@@ -51,22 +54,22 @@ def add_features(frame: pd.DataFrame) -> pd.DataFrame:
     """Construct features with current and strictly prior data from one series.
 
     Input is output from the history detector. A previous day must have been
-    scored; the prior flag fraction needs at least three scored, unambiguous
-    days in [day-7, day). Missingness is never filled with normal-looking values.
+    scored; the prior mean deviation needs at least three scored, unambiguous
+    days in [day-7, day). No feature depends on the detector's alert threshold.
+    Missingness is never filled with normal-looking values.
     """
     missing = set(REQUIRED) - set(frame.columns)
     if missing:
         raise ValueError(f'Missing history detector columns: {sorted(missing)}')
     out = frame.copy().reset_index(drop=True)
     out['_date'] = pd.to_datetime(out['parsed_date'], errors='coerce').dt.normalize()
-    for field in ('parsed_value', 'history_median', 'history_mad', 'anomaly_score'):
+    numeric_fields = ['parsed_value', 'history_median', 'history_scale', 'anomaly_score', 'repeat_days']
+    for field in numeric_fields:
         out[field] = pd.to_numeric(out[field], errors='coerce')
-    out['_flag'] = out['anomaly_flag'].astype(str).str.lower().map({'true': 1.0, 'false': 0.0})
     out['_duplicate'] = out['_date'].notna() & out.duplicated(SERIES + ['_date'], keep=False)
-    numeric = out[['parsed_value', 'history_median', 'history_mad', 'anomaly_score']]
     out['_valid'] = (out['score_status'].eq('scored') & out['_date'].notna()
-                     & np.isfinite(numeric).all(axis=1) & out['history_mad'].gt(0)
-                     & out['_flag'].notna() & ~out['_duplicate'])
+                     & np.isfinite(out[numeric_fields]).all(axis=1) & out['history_scale'].gt(0)
+                     & out['repeat_days'].ge(1) & ~out['_duplicate'])
     out['ai_status'] = 'unscored_history_detector'
     out.loc[out['_duplicate'], 'ai_status'] = 'unscored_ambiguous_same_day'
     out.loc[out['score_status'].eq('scored') & ~out['_valid'] & ~out['_duplicate'],
@@ -82,27 +85,33 @@ def add_features(frame: pd.DataFrame) -> pd.DataFrame:
         previous_valid = ordered['_valid'].shift(fill_value=False)
         prior_day = ((ordered['_date'] - previous_date).dt.days.eq(1) & previous_valid)
         good = ordered['_valid']
-        scale = 1.4826 * ordered['history_mad']
-        signed = (ordered['parsed_value'] - ordered['history_median']) / scale
-        change = (ordered['parsed_value'] - previous_value) / scale
+        value, median, scale = ordered['parsed_value'], ordered['history_median'], ordered['history_scale']
+        signed = (value - median) / scale
+        change = (value - previous_value) / scale
+        # Level relative to the typical value; the spread guards against a zero median.
+        relative = (value - median) / np.maximum(median.abs(), scale)
 
         # A date-based window with closed='left' excludes the current day.
         valid_rows = ordered.loc[good]
-        history_flags = pd.Series(valid_rows['_flag'].to_numpy(), index=valid_rows['_date'])
-        prior = history_flags.rolling('7D', closed='left', min_periods=3).mean()
+        deviation = pd.Series(np.log1p(np.abs(signed.loc[good])).to_numpy(), index=valid_rows['_date'])
+        prior = deviation.rolling('7D', closed='left', min_periods=3).mean()
         prior.index = valid_rows.index
         have_prior = pd.Series(False, index=ordered.index)
         have_prior.loc[prior.index] = prior.notna().to_numpy()
-        computed = good & prior_day & have_prior & np.isfinite(signed) & np.isfinite(change)
+        computed = (good & prior_day & have_prior & np.isfinite(signed) & np.isfinite(change)
+                    & np.isfinite(relative))
         out.loc[ordered.index[good & ~prior_day], 'ai_status'] = 'unscored_missing_prior_day'
-        out.loc[ordered.index[good & prior_day & ~have_prior], 'ai_status'] = 'unscored_insufficient_prior_flags'
+        out.loc[ordered.index[good & prior_day & ~have_prior], 'ai_status'] = 'unscored_insufficient_prior_days'
         out.loc[ordered.index[good & prior_day & have_prior & ~computed], 'ai_status'] = 'unscored_nonfinite_features'
         idx = ordered.index[computed]
         out.loc[idx, 'signed_deviation_log'] = np.sign(signed.loc[idx]) * np.log1p(np.abs(signed.loc[idx]))
         out.loc[idx, 'day_change_log'] = np.sign(change.loc[idx]) * np.log1p(np.abs(change.loc[idx]))
-        out.loc[idx, 'prior_flag_fraction'] = prior.loc[idx]
+        out.loc[idx, 'prior_deviation_log_mean'] = prior.loc[idx]
+        out.loc[idx, 'relative_level_log'] = np.sign(relative.loc[idx]) * np.log1p(np.abs(relative.loc[idx]))
+        out.loc[idx, 'is_zero'] = value.loc[idx].eq(0).astype(float)
+        out.loc[idx, 'repeat_days_log'] = np.log(ordered.loc[idx, 'repeat_days'])
         out.loc[idx, 'ai_status'] = 'eligible'
-    return out.drop(columns=['_flag', '_valid', '_duplicate'])
+    return out.drop(columns=['_valid', '_duplicate'])
 
 
 def split_labels(dates: pd.Series, config: Config) -> pd.Series:
@@ -132,14 +141,20 @@ def fit_model(frame: pd.DataFrame, config: Config):
     return model, threshold
 
 
-def select_daily_budget(frame: pd.DataFrame, score: str, budget: int) -> pd.Series:
-    """Select at most K eligible rows per day with deterministic tie-breaking."""
+def select_daily_budget(frame: pd.DataFrame, scores: list[str], budget: int) -> pd.Series:
+    """Select at most K eligible rows per plant per day, ranked by scores in order.
+
+    Each plant has its own operator, so plants never compete for one shared
+    budget. Ties break on source file, then numeric source row.
+    """
     if budget < 1:
         raise ValueError('Daily review budget must be positive')
-    mask = frame['ai_status'].eq('eligible') & frame['_date'].notna() & frame[score].notna()
-    candidates = frame.loc[mask].sort_values(
-        ['_date', score, 'source_file', 'source_row'], ascending=[True, False, True, True], kind='stable')
-    selected = candidates.groupby('_date', sort=False).head(budget).index
+    mask = frame['ai_status'].eq('eligible') & frame['_date'].notna() & frame[scores].notna().all(axis=1)
+    candidates = frame.loc[mask].assign(_row=pd.to_numeric(frame.loc[mask, 'source_row'], errors='coerce'))
+    candidates = candidates.sort_values(
+        ['_date', 'InstallationCodeOrigin', *scores, 'source_file', '_row'],
+        ascending=[True, True, *[False] * len(scores), True, True], kind='stable')
+    selected = candidates.groupby(['_date', 'InstallationCodeOrigin'], sort=False).head(budget).index
     return pd.Series(frame.index.isin(selected), index=frame.index, dtype=bool)
 
 
@@ -154,13 +169,14 @@ def evaluate(frame: pd.DataFrame, config: Config) -> dict:
         'test_unscored_by_ai_reason': {str(k): int(v) for k, v in test.loc[~eligible, 'ai_status'].value_counts().items()},
         'test_history_status_counts': {str(k): int(v) for k, v in test['score_status'].value_counts().items()},
         'test_baseline_default_flags_on_same_eligible': int(test.loc[eligible, 'anomaly_flag'].astype(str).str.lower().eq('true').sum()),
+        'test_baseline_rule_hits_on_same_eligible': int(test.loc[eligible, '_rule_any'].sum()),
         'test_ai_fixed_threshold_flags_on_same_eligible': int(test.loc[eligible, 'ai_flag'].fillna(False).sum()),
         'test_budget_days': int(test.loc[eligible, '_date'].nunique()),
         'test_baseline_budget_selected': int(a.sum()), 'test_ai_budget_selected': int(b.sum()),
         'test_both_budget_selected': int((a & b).sum()),
         'test_baseline_only_budget_selected': int((a & ~b).sum()),
         'test_ai_only_budget_selected': int((b & ~a).sum()),
-        'review_budget_cases_per_day_assumed': config.daily_review_budget,
+        'review_budget_per_plant_per_day_assumed': config.plant_daily_budget,
         'interpretation': 'Descriptive counts and rankings only; no labelled accuracy, false-alarm rate or savings.',
     }
 
@@ -199,7 +215,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     if output.exists() and any(output.iterdir()):
         raise ValueError('Output must be a new or empty private directory')
     info = json.loads(info_path.read_text(encoding='utf-8'))
-    if info.get('status') != 'provisional_unvalidated':
+    if info.get('status') not in ('provisional_unvalidated', 'smoke_run_partial'):
         raise ValueError('Unexpected history output status')
     source = pd.read_csv(input_path, dtype=str, keep_default_na=False)
     if len(source) != info.get('counts', {}).get('selected_rows'):
@@ -213,11 +229,13 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     data.loc[eligible, 'ai_score'] = -model.score_samples(data.loc[eligible, FEATURES])
     data['ai_flag'] = pd.Series(pd.NA, index=data.index, dtype='boolean')
     data.loc[eligible, 'ai_flag'] = data.loc[eligible, 'ai_score'].ge(threshold)
-    data['baseline_budget_selected'] = select_daily_budget(data, 'anomaly_score', config.daily_review_budget)
-    data['ai_budget_selected'] = select_daily_budget(data, 'ai_score', config.daily_review_budget)
+    # The baseline ranks rule hits (stuck, dropout, negative) first, then the robust score.
+    data['_rule_any'] = data[RULES].apply(lambda s: s.astype(str).str.lower().eq('true')).any(axis=1).astype(float)
+    data['baseline_budget_selected'] = select_daily_budget(data, ['_rule_any', 'anomaly_score'], config.plant_daily_budget)
+    data['ai_budget_selected'] = select_daily_budget(data, ['ai_score'], config.plant_daily_budget)
     # Explicitly preserve baseline evidence; feature values are not causal explanations.
     data['ai_explanation'] = np.where(eligible,
-        'Isolation Forest ranked the history-derived feature combination; inspect signed deviation, daily change and previous flags.',
+        'Isolation Forest ranked the history-derived feature combination; inspect deviation, daily change, recent deviations, level, zeros and repeats.',
         'Not scored by AI; see ai_status and the original history-detector status.')
     results = evaluate(data, config)
     versions = {'python': platform.python_version(), 'pandas': pd.__version__, 'numpy': np.__version__,
@@ -228,7 +246,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
               'measurement': info.get('measurement', 'influent_volume'),
               'history_config': info.get('config'), 'history_selection': info.get('selection')}
     joblib.dump(bundle, output / 'isolation_forest.joblib')
-    data.drop(columns=['_date']).to_csv(output / 'scored_records.csv.gz', index=False, compression='gzip')
+    data.drop(columns=['_date', '_rule_any']).to_csv(output / 'scored_records.csv.gz', index=False, compression='gzip')
     manifest = {'status': 'provisional_unvalidated', 'config': asdict(config), 'feature_order': FEATURES,
                 'threshold': threshold, 'versions': versions, 'history_config': info.get('config'),
                 'measurement': info.get('measurement', 'influent_volume'),
@@ -240,7 +258,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
                 'caveats': ['Historical daily data; observation availability time is unconfirmed.',
                             'Selection and meaning require TAI confirmation.',
                             'No expert-reviewed labels: no measured real-world accuracy or false-alarm rate.',
-                            'Daily review budget is an assumption; selection is descriptive, not safe suppression.',
+                            'Per-plant daily budget is an assumption; selection is descriptive, not safe suppression.',
                             'Saved models must be loaded only from trusted local sources.']}
     (output / 'run_info.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print('Completed retrospective Isolation Forest scoring; outputs and aggregate results are local.')
@@ -254,11 +272,12 @@ def main():
     parser.add_argument('--validation-end', default=Config.validation_end)
     parser.add_argument('--test-end', default=Config.test_end)
     parser.add_argument('--validation-flag-fraction', type=float, default=Config.validation_flag_fraction)
-    parser.add_argument('--daily-review-budget', type=int, default=Config.daily_review_budget)
+    parser.add_argument('--plant-daily-budget', type=int, default=Config.plant_daily_budget,
+                        help='Readings selected per plant per day in the descriptive comparison')
     parser.add_argument('--seed', type=int, default=Config.seed)
     args = parser.parse_args()
     run(args.history_dir, args.output, Config(args.train_end, args.validation_end, args.test_end,
-        args.validation_flag_fraction, args.daily_review_budget, args.seed))
+        args.validation_flag_fraction, args.plant_daily_budget, args.seed))
 
 
 if __name__ == '__main__':

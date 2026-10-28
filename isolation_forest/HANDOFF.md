@@ -26,23 +26,27 @@ including history-detector status, quality flags and provenance.
 For each separately grouped installation, measurement point and process context,
 only previously scored, unambiguous records are used to calculate these features:
 
-1. **Signed deviation:** `(value - prior median) / (1.4826 * prior MAD)`.
-2. **One-day change:** `(value - previous day's value) / (1.4826 * prior MAD)`.
+1. **Signed deviation:** `(value - prior median) / prior spread`, where the spread
+   is the history detector's floored robust spread (`history_scale`).
+2. **One-day change:** `(value - previous day's value) / prior spread`.
    The previous calendar day must have a valid history-detector score; gaps or
    invalid previous rows are not imputed.
-3. **Prior flag fraction:** the fraction of history-detector flags among scored
-   observations in `[day - 7 days, day)`, requiring at least three. The history
-   detector's provisional threshold controls those prior flags.
+3. **Prior mean deviation:** the mean of `log1p(|signed deviation|)` over scored
+   observations in `[day - 7 days, day)`, requiring at least three. Unlike the
+   earlier prior flag fraction, it does not depend on any alert threshold.
+4. **Relative level:** `(value - prior median) / max(|prior median|, spread)`.
+5. **Zero:** 1 when the value is exactly zero.
+6. **Repeat days:** `log` of the number of consecutive days with this exact value.
 
-The first two features use `sign(x) * log1p(abs(x))` to compress extreme
-values while retaining direction. The transform is fixed and has no fitted
+Features 1, 2 and 4 use `sign(x) * log1p(abs(x))` to compress extreme
+values while retaining direction. The transforms are fixed and have no fitted
 parameters. Neither identifiers nor absolute plant quantities are used as model
 features. Series identifiers are used only to keep histories separate; there is
 no cross-plant information. There is no fitted scaler or imputer.
 
-AI eligibility requires a valid history score, finite feature inputs, positive
-MAD, one unambiguous record for the day, a valid previous day and at least three
-earlier scored flags in the 7-day window. Ineligible rows remain in the output
+AI eligibility requires a valid history score, finite feature inputs, a positive
+spread, one unambiguous record for the day, a valid previous day and at least three
+earlier scored days in the 7-day window. Ineligible rows remain in the output
 with `ai_status` and a blank `ai_score` / `ai_flag`. The original `score_status`
 and `anomaly_flag` remain available. A history-unscored record is never relabelled
 normal by the AI layer. Current-day and future data do not enter prior features.
@@ -61,13 +65,15 @@ not a probability. The fixed alert threshold is the 99th percentile of validatio
 scores by default and is applied unchanged to the held-out period. The 1% value
 is a workload assumption for calibration, not an observed prevalence or target
 false-alarm rate. Ties may change the exact validation flag fraction. The
-history detector's fixed 3.5 threshold and the AI threshold are not directly
-comparable because they were chosen differently.
+history detector's calibrated thresholds and the AI threshold are not directly
+comparable because they were chosen on different periods and scores.
 
-For a separate fair *ranking* comparison, independently select the top 10
-eligible rows per date for each method, with deterministic source-file/row
-tie-breaking. This budget is an example and configurable. Both use exactly the
-same eligible rows. Selection ranks all eligible rows, including those below a
+For a separate fair *ranking* comparison, independently select the top
+eligible reading **per plant per date** (`--plant-daily-budget 1`) for each
+method, because each plant has its own operator. The baseline ranks rule hits
+(stuck, dropout, negative) first, then the robust score; the forest ranks by
+`ai_score`. Ties break on source file, then numeric source row. This budget is
+an example and configurable. Both use exactly the same eligible rows. Selection ranks all eligible rows, including those below a
 method's fixed threshold; it is a retrospective day-level comparison and does
 not assume simultaneous or real-time availability. Ties can be arbitrary. This
 counts readings, not grouped incidents; deferred or unscored does not mean safe.
@@ -96,7 +102,7 @@ python3 -B -m unittest -v isolation_forest.test_model
 Choose a new empty private output directory for each run; the program never
 overwrites a nonempty directory or input. Configurable options: `--train-end`,
 `--validation-end`, `--test-end`, `--validation-flag-fraction`,
-`--daily-review-budget`, and `--seed`. Exact commands, source hashes, split
+`--plant-daily-budget`, and `--seed`. Exact commands, source hashes, split
 counts, thresholds, package versions, selection and history-detector settings
 are captured in the private `run_info.json`.
 
@@ -130,6 +136,6 @@ improvement until comparable, independent evidence supports it.
 
 The statistical detector remains available independently. The tests in
 `isolation_forest/test_model.py` use artificial fixtures to check chronology,
-isolation between series, duplicates, gaps, zero MAD, deterministic fitting,
+isolation between series, duplicates, gaps, zero spread, threshold-free features, deterministic fitting,
 held-out leakage, budget ties and model reload. They do not prove operational
 usefulness or validate all possible data conditions.
