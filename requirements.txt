@@ -1,9 +1,6 @@
-# Initial candidate stack, unpinned. Add packages only when the real challenge justifies them,
-# then record resolved versions (pip freeze) in data/tai_work/DECISIONS.md.
-pandas
+# Core dependencies imported by the TAI pipeline and tests.
+# Unpinned: record `python -m pip freeze` alongside results for reproducibility.
 numpy
+pandas
 scikit-learn
-scipy
-plotly
-streamlit
 joblib
