@@ -1,4 +1,4 @@
-# Second Opinion: an investigation queue for unusual wastewater measurements
+# Second Opinion: smarter validation of wastewater measurements
 
 **Tagline:** Spot unusual measurements, compare the evidence, and decide what to
 check first.
@@ -12,13 +12,21 @@ TAI / Z-info asks us to detect and flag unusual measurements at wastewater
 treatment plants, explain why the flags are useful, and consider what false
 alarms cost an operator. The data has no confirmed anomaly labels.
 
+In the mentor briefing, TAI described a validation workflow in which readings
+outside predefined limits trigger warnings, while readings within those limits
+may pass validation despite being unusual. The mentors reported approximately
+30,000 new measurement points per day and around 321 plants in the platform;
+these are briefing figures, not counts verified from the supplied dataset.
+Validated data is used downstream for analysis, reporting and decisions. The
+longer-term ambition described in the briefing is an AI-supported digital operator.
+
 Wastewater plants collect many measurements. A reading may look unusual because
 of a change in the process, a measurement or data issue, or a change also seen
 at other plants. Flagging every unusual value could overwhelm an operator.
 
-**Our problem statement:** How can we help an operator identify unusual
-wastewater measurements worth checking, understand the evidence behind each
-flag, and manage the time needed to review them?
+**Our problem statement:** How can we identify suspicious measurements that
+existing limit-based checks may miss, explain why they deserve attention, and
+help operators prioritise their validation within the time available?
 
 An unusual value is a reason to investigate, not proof of a fault, incident,
 physical cause, or safe condition. The operator remains responsible for decisions.
@@ -63,7 +71,9 @@ share the same cause.
   same-date records. Preserve raw records and document any exclusion or handling;
   do not silently average or discard conflicting values.
 - Ask the experts what operators currently investigate, how long reviews take,
-  what matters operationally, and whether they can review sample cases.
+  what matters operationally, and whether they can review sample cases. Confirm
+  whether actual limits, their historical versions and validation outcomes are
+  available and comparable to the selected readings.
 
 ### 2. Build the history-only baseline
 
@@ -108,6 +118,12 @@ to all candidates.
 
 ## Testing without anomaly labels
 
+Where actual applicable limits are available, add the existing limit-based rule
+as a comparator and identify candidates that remain inside those limits. If
+limits or their historical applicability cannot be established, say that the
+comparison is unavailable; do not invent thresholds or claim a flag was missed
+by the existing system. A flag inside a limit is not by itself a confirmed error.
+
 The strongest available evidence may be limited. Compare the history-only and
 peer-aware methods on the **same chronological holdout, eligible points, event
 definitions, review budgets and evaluation protocol**. Keep training, threshold
@@ -142,6 +158,16 @@ case grouping; review-budget control; side-by-side baseline and peer-aware tests
 **Wow feature:** an interactive view showing how the two methods and their
 deferred cases change at the same review budget, supported by recorded test results.
 Do not sacrifice the working core for an unfinished feature.
+
+### Optional bonus: dry-weather insights
+
+Only after the core validation workflow works, explore differences between dry
+and wet periods if suitable weather information and compatible measurements are
+available. Compare incoming flow and available water-quality measures where
+appropriate, and discuss possible operational relevance with experts. Label
+observed associations and limitations clearly: lower flow does not establish
+easier treatment or lower costs, and those outcomes require supporting evidence.
+This is a separate exploratory bonus, not a prerequisite for the core submission.
 
 For the demonstration:
 
