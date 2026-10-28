@@ -14,4 +14,4 @@ Check and report honestly (including failures):
   scalers, thresholds, windows);
 - every claim in the pitch traces to a recorded result.
 
-Record exact run commands and package versions in `README.md` / `DECISIONS.md`.
+Record exact run commands and package versions in `README.md` / `data/tai_work/DECISIONS.md`.

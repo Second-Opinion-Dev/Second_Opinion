@@ -5,7 +5,7 @@ description: Stage 2. Turn the company challenge and audited data into an operat
 
 # Stage 2: Frame the problem
 
-Write (concisely, in `DECISIONS.md`):
+Write (concisely, in `data/tai_work/DECISIONS.md`):
 
 INPUT -> PREDICTION / DETECTION -> DECISION -> BUSINESS / ENVIRONMENTAL VALUE
 

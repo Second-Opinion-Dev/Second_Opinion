@@ -7,7 +7,8 @@ description: Stage 7. Build the selected system incrementally in reusable module
 
 Create the project structure now, only what is needed (e.g. `src/` modules for data, features,
 models, evaluation, explainability; `artifacts/`, `reports/`, `tests/`). Generated output folders
-(`artifacts/`, `reports/`) and `data/` are git-ignored. Build in increments: MUST first, run end to end, then SHOULD, then WOW.
+(`artifacts/`, `reports/`) and partner datasets are git-ignored; reviewed TAI code and
+documentation under `data/tai_work/` are tracked. Build in increments: MUST first, run end to end, then SHOULD, then WOW.
 
 - Small functions, clear names, config in one place, deterministic seeds.
 - Produce explanations as structured records (see `.agents/templates/EVENT_CARD.md`): time span,

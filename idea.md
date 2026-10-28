@@ -180,7 +180,7 @@ For the demonstration:
 ## Rules for agents
 
 - Follow `AGENTS.md`, the staged playbooks in `.agents/skills/`, and the team's
-  branch-and-PR workflow. Read the local `DATA_AUDIT.md` and `DECISIONS.md` when
+  branch-and-PR workflow. Read the local `data/tai_work/DATA_AUDIT.md` and `data/tai_work/DECISIONS.md` when
   available; do not assume those private files exist in a fresh clone.
 - Inspect the actual data before implementing; do not assume a flow column, peer
   set, input meaning, labels, operating limits or suitable external data.

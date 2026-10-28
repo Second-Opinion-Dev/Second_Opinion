@@ -8,9 +8,10 @@ description: Entry point on hackathon day. Use when the user provides the challe
 1. Read `.agents/context/hackathon.md` and `.agents/context/principles.md`.
 2. Locate the materials (default `data/raw/`). List every file recursively with sizes. Treat
    raw files as read-only. If the challenge statement is a document, read it fully.
-3. Create `DATA_AUDIT.md` and `DECISIONS.md` at the repo root from `.agents/templates/`.
+3. Read the existing `data/tai_work/DATA_AUDIT.md` and `data/tai_work/DECISIONS.md`,
+   or create them from `.agents/templates/` if they do not exist.
 4. Set up the environment only if needed (WSL: `python3 -m venv .venv && source .venv/bin/activate`
-   then `pip install -r requirements.txt`). Record versions in `DECISIONS.md`.
+   then `pip install -r requirements.txt`). Record versions in `data/tai_work/DECISIONS.md`.
 5. Run the skills in order, **pausing after each for the user's go-ahead**:
    `01-understand-data` -> `02-frame-problem` -> `03-explore` -> `04-baseline` ->
    `05-improve` -> `06-differentiate` -> `07-build` -> `08-demo-app` -> `09-validate` -> `10-pitch`.

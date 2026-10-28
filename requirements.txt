@@ -1,5 +1,5 @@
 # Initial candidate stack, unpinned. Add packages only when the real challenge justifies them,
-# then record resolved versions (pip freeze) in DECISIONS.md.
+# then record resolved versions (pip freeze) in data/tai_work/DECISIONS.md.
 pandas
 numpy
 scikit-learn
