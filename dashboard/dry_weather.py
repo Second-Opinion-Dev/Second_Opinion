@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from data_access import DATA, catalog, values
-from history_detector.history_detector import MEASUREMENTS
+from src.history_detector.history_detector import MEASUREMENTS
 from yearly_metrics import YEARS, annual_medians
 
 st.set_page_config(page_title="Second Opinion | Rain and treatment", page_icon="💧", layout="wide")

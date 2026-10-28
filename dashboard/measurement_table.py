@@ -10,7 +10,7 @@ def scored_measurement_table(records: pd.DataFrame, start, end, *, dutch=False, 
     context = ["ProcessCode", "SubProcessCodeOrigin", "SubProcessDescription", "MeasurementPointID", "Product", "ProductBalance", "InstallationCodeDestination", "SubProcessDestination", "Unit", "metric"]
     for col in context:
         if col not in data: data[col] = ""
-    data[context] = data[context].fillna("").astype(str)
+    data[context] = data[context].astype("string").fillna("")
     data = data.sort_values(context + ["date", "source_file", "source_row"], kind="stable")
     data["occurrence"] = data.groupby(context + ["date"], sort=False, dropna=False).cumcount()
     days = pd.date_range(start, end)

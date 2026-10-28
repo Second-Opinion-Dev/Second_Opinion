@@ -61,6 +61,14 @@ class ResultsTest(unittest.TestCase):
         self.assertIn('class="day unassessed"', table)
         self.assertIn("2025", table)
 
+    def test_table_handles_missing_categorical_context(self):
+        data, _, _ = load_metric(self.root, "oxygen")
+        data["Product"] = pd.Categorical([None, "sludge", None])
+        data["SubProcessCodeOrigin"] = pd.Categorical(["tank", None, "tank"])
+        table = scored_measurement_table(data, "2025-01-02", "2025-01-04")
+        self.assertIn("Oxygen", table)
+        self.assertIn('class="day flag"', table)
+
     def test_all_metrics_keep_same_point_and_day_separate(self):
         data, _, _ = load_metric(self.root, "oxygen")
         second = data.iloc[[0]].copy()
