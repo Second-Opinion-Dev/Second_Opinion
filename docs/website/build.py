@@ -1,7 +1,7 @@
-"""Build the website into _site/: the static pages in site/ plus HTML pages rendered from the markdown guides.
+"""Build the website into _site/: the static pages in docs/website/ plus HTML pages rendered from the markdown guides.
 
 The markdown in docs/ (and the dashboard README) stays the single source; this script only reads it.
-Run from anywhere: python site/build.py [--out DIR]
+Run from anywhere: python docs/website/build.py [--out DIR]
 """
 
 import argparse
@@ -14,11 +14,11 @@ from pathlib import Path
 from markdown_it import MarkdownIt
 from mdit_py_plugins.anchors import anchors_plugin
 
-ROOT = Path(__file__).resolve().parent.parent
-SITE = ROOT / 'site'
+ROOT = Path(__file__).resolve().parents[2]
+SITE = ROOT / 'docs' / 'website'
 REPO = 'https://github.com/SunilParameswaran/Second_Opinion'
 PAGES = 'https://sunilparameswaran.github.io/Second_Opinion/'
-# Files in site/ that build the website but are not part of it.
+# Files in docs/website/ that build the website but are not part of it.
 NOT_PUBLISHED = {'build.py', 'README.md', 'requirements.txt'}
 
 # (markdown source, page slug under docs/, sidebar title, one-line summary)

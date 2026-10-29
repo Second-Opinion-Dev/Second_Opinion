@@ -140,7 +140,7 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
 | [Simulated dataset](docs/simulation/README.md) | A generated stand-in for the export, with injected anomalies and an answer key |
 | [Dashboard](dashboard/README.md) | The local review workspace, its results layout and the optional Claude explanation |
-| [Website](site/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
+| [Website](docs/website/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
 
 ## Repository layout
 
@@ -154,7 +154,7 @@ src/simulation/              Simulated Z-info export generator
 dashboard/                   Local web dashboard (Python server, JavaScript frontend)
 tests/                       Synthetic-fixture tests
 docs/                        Methodology, component guides and README graphics
-site/                        Project website (GitHub Pages)
+docs/website/                Project website source (GitHub Pages)
 data/                        Local data and outputs (git-ignored)
 ```
 
