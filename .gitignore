@@ -1,7 +1,6 @@
-# Partner data is for the hackathon only: never commit it (see partner briefing).
-# Each teammate downloads their own copy.
+# Measurement data and everything derived from it stay local: never commit them.
 # Code lives in src/, tests in tests/ and documentation in docs/; data/ holds data only.
-data/*
+data/
 # Generated outputs stay local.
 artifacts/
 reports/
@@ -18,7 +17,6 @@ __pycache__/
 # Secrets and OS files
 .env
 .env.*
-!data/.env.example
 *.pem
 *.key
 .DS_Store

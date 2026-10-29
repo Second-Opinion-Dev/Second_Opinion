@@ -112,11 +112,11 @@ class DriverTest(unittest.TestCase):
     def test_real_stage_list_orders_dependencies(self):
         stages = build_stages(self.root, ['oxygen'], smoke=5, with_faults=True, target_flag_rate=0.01, fault_sample=3)
         names = [stage.name for stage in stages]
-        self.assertEqual(names, ['download', 'prepare', 'verify', 'detect:oxygen', 'forest:oxygen', 'faults:oxygen'])
+        self.assertEqual(names, ['prepare', 'verify', 'detect:oxygen', 'forest:oxygen', 'faults:oxygen'])
         for position, stage in enumerate(stages):
             self.assertTrue(all(need in names[:position] for need in stage.needs))
             self.assertTrue(stage.script.is_file())
-        self.assertIn('--max-points', stages[3].args)
+        self.assertIn('--max-points', stages[2].args)
 
 
 if __name__ == '__main__':

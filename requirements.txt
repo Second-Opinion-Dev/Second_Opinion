@@ -1,4 +1,4 @@
-# Core dependencies imported by the TAI pipeline and tests.
+# Core dependencies imported by the pipeline and tests.
 # Unpinned: record `python -m pip freeze` alongside results for reproducibility.
 numpy
 pandas

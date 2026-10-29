@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export an unapproved exploratory Influent/Volume slice from cleaned TAI files."""
+"""Export an unapproved exploratory Influent/Volume slice from cleaned export files."""
 import argparse
 from pathlib import Path
 import pandas as pd

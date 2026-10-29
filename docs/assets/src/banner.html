@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!-- README header. Render: see docs/assets/src/README.md -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Second Opinion banner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono&display=swap">
+<style>
+:root{--bg:#04090d;--ink:#e9eef0;--mute:#8fa1a8;--line:rgba(233,238,240,.18);--acc:#9fd8ea;
+--sans:"Inter",system-ui,sans-serif;--serif:"Instrument Serif",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{width:1280px;height:440px;overflow:hidden;background:var(--bg)}
+body{position:relative;color:var(--ink);font:300 18px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+/* fallback when WebGL is unavailable: the deck's print gradient */
+.flow{position:absolute;inset:0;background:radial-gradient(ellipse 22% 80% at 76% 55%,#1a6a80 0,#0a3445 50%,transparent 80%),radial-gradient(ellipse at 70% 40%,#0b2a38,#04090d 70%)}
+.flow canvas{position:absolute;inset:0;width:100%;height:100%}
+.flow::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(4,9,13,.92) 0,rgba(4,9,13,.55) 45%,rgba(4,9,13,0) 70%),linear-gradient(180deg,rgba(4,9,13,.35),rgba(4,9,13,0) 40%,rgba(4,9,13,.55))}
+.c{position:absolute;inset:0;padding:54px 72px 44px;display:flex;flex-direction:column}
+.top{font:400 13px/1.8 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
+.top b{color:var(--acc);font-weight:400}
+h1{margin-top:auto;font-weight:600;text-transform:uppercase;font-size:118px;line-height:.86;letter-spacing:-.045em;white-space:nowrap}
+h1 em{font:italic 400 1.04em/.86 var(--serif);text-transform:lowercase;letter-spacing:-.02em;color:var(--acc);margin-left:.08em}
+.tl{margin-top:20px;font:italic 400 30px/1.15 var(--serif);color:var(--ink);max-width:24em}
+.meta{display:flex;gap:56px;margin-top:30px;border-top:1px solid var(--line);padding-top:14px;font:400 12px/1.7 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.meta b{display:block;color:var(--ink);font-weight:400}
+</style>
+</head>
+<body>
+<div class="flow" id="flow"></div>
+<div class="c">
+  <div class="top">Measurement validation <b>//</b> wastewater treatment</div>
+  <h1>Second<em>opinion</em></h1>
+  <p class="tl">Spot unusual measurements, compare the evidence, and decide what to check first.</p>
+  <div class="meta">
+    <div><b>History detector</b>Rolling median / MAD per point</div>
+    <div><b>AI layer</b>Experimental Isolation Forest</div>
+    <div><b>Decision</b>The operator, not the model</div>
+  </div>
+</div>
+<script>
+/* Water shader from slide_deck/index.html, drawn once as a still frame. */
+(function(){
+  var flow=document.getElementById('flow'),c=document.createElement('canvas'),
+      gl=c.getContext('webgl',{antialias:false,alpha:false,preserveDrawingBuffer:true});
+  if(!gl)return;
+  var fs=`precision highp float;
+uniform vec2 R;uniform float F,P;
+float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n(p);p=p*2.03+vec2(7.1,3.7);a*=.5;}return v;}
+void main(){
+ vec2 uv=gl_FragCoord.xy/R;float asp=R.x/R.y,xa=uv.x*asp;
+ float cx=.78*asp+.03*asp*sin(uv.y*3.+P*9.+F*.05);
+ float hw=mix(.26,.1,smoothstep(0.,.16,P))*clamp(asp*.9,.45,1.);
+ float d=abs(xa-cx)/hw;
+ float m=1.-smoothstep(.55,1.15,d+(fbm(vec2(uv.y*4.+F,xa*3.))-.5)*.35);
+ float sx=xa*30.+(fbm(vec2(xa*2.5,uv.y*1.6+F*.4))-.5)*7.,sy=uv.y*2.4+F;
+ float b=smoothstep(.32,.82,fbm(vec2(sx,sy*.3))*.55+fbm(vec2(sx*1.8+3.,sy*.2+F*1.2))*.45);
+ float fo=fbm(vec2(sx*.45,sy*1.1+F*.7))*fbm(vec2(sx*.28+9.,sy*1.9+F*1.3))*2.6;
+ float foam=smoothstep(.6,1.05,fo)*(.35+.65*smoothstep(.45,1.,d));
+ foam=clamp(foam+smoothstep(.55,1.,uv.y)*smoothstep(.5,1.,fo)*.8,0.,1.);
+ vec3 deep=vec3(.008,.04,.06),mid=vec3(.04,.26,.34),lt=vec3(.78,.94,.99);
+ vec3 col=mix(deep,mid,b)+lt*pow(b,3.)*.5;col=mix(col,vec3(.96,.99,1.),foam*.85);
+ vec3 bg=deep*.8+vec3(.01,.05,.07)*(1.-uv.y);
+ bg+=vec3(.05,.2,.26)*exp(-pow(max(d-.6,0.)*1.1,2.))*.5;
+ vec3 o=mix(bg,col,m);o*=mix(.5,1.,smoothstep(.05,.7,uv.x));
+ o=o/(1.+o*.2);gl_FragColor=vec4(pow(o,vec3(.92)),1.);
+}`;
+  function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null;}
+  var v=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),f=sh(gl.FRAGMENT_SHADER,fs),pr=gl.createProgram();
+  if(!v||!f)return;
+  gl.attachShader(pr,v);gl.attachShader(pr,f);gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return;
+  var dpr=window.devicePixelRatio||1;c.width=1280*dpr;c.height=440*dpr;gl.viewport(0,0,c.width,c.height);
+  gl.useProgram(pr);gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var al=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+  gl.uniform2f(gl.getUniformLocation(pr,'R'),c.width,c.height);gl.uniform1f(gl.getUniformLocation(pr,'F'),2.6);gl.uniform1f(gl.getUniformLocation(pr,'P'),0);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  flow.appendChild(c);
+})();
+</script>
+</body>
+</html>

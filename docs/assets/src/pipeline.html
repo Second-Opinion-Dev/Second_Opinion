@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- README pipeline graphic. Render: see docs/assets/src/README.md -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Second Opinion pipeline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono&display=swap">
+<style>
+:root{--bg:#04090d;--ink:#e9eef0;--mute:#8fa1a8;--line:rgba(233,238,240,.18);--acc:#9fd8ea;
+--sans:"Inter",system-ui,sans-serif;--serif:"Instrument Serif",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{width:1280px;height:490px;overflow:hidden}
+body{background:radial-gradient(ellipse at 75% 30%,#0b2a38,#04090d 70%);color:var(--ink);font:300 17px/1.45 var(--sans);-webkit-font-smoothing:antialiased;padding:44px 64px}
+.k{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px;font:400 13px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+h2{margin-top:26px;font:400 54px/1 var(--serif);letter-spacing:-.015em}
+h2 em{color:var(--acc)}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:34px;position:relative}
+.st{position:relative;border-top:1px solid var(--acc);padding:16px 14px 0 0}
+.st small{font:400 12px/1 var(--mono);letter-spacing:.16em;color:var(--acc)}
+.st h3{font:500 22px/1.1 var(--sans);text-transform:uppercase;letter-spacing:-.01em;margin:14px 0 8px}
+.st p{color:var(--mute);font-size:15px}
+.st code{font:400 12.5px var(--mono);color:var(--ink);opacity:.85}
+.st:not(:last-child)::after{content:"→";position:absolute;right:-17px;top:-12px;font:400 16px var(--mono);color:var(--acc)}
+.side{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.side div{border-left:1px solid var(--acc);padding:4px 0 4px 18px;font:italic 400 21px/1.25 var(--serif)}
+.side small{display:block;margin-bottom:6px;font:400 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc);font-style:normal}
+</style>
+</head>
+<body>
+  <div class="k"><span>Second Opinion // pipeline</span><span>Historical, day-level data</span></div>
+  <h2>From raw measurements <em>to a review queue.</em></h2>
+  <div class="flow">
+    <div class="st"><small>01 // PREPARE</small><h3>Retain</h3><p>Stream the Z-info export, keep every row with its source file and row, and flag quality issues.</p><code>tai_pipeline.py · tai_verify.py</code></div>
+    <div class="st"><small>02 // DETECT</small><h3>Score</h3><p>Compare each reading with the prior 28 days of its own series and apply stuck, dropout and negative rules.</p><code>history_detector.py</code></div>
+    <div class="st"><small>03 // ORGANISE</small><h3>Group</h3><p>Merge nearby flagged days into cases and rank them within each plant: rules, duration, peak score.</p><code>cases.csv.gz</code></div>
+    <div class="st"><small>04 // REVIEW</small><h3>Investigate</h3><p>Open a case with its value, baseline, rules and source context. The operator decides.</p><code>dashboard/app.py</code></div>
+  </div>
+  <div class="side">
+    <div><small>In parallel</small>An Isolation Forest per measurement group offers an experimental second ranking.</div>
+    <div><small>Safeguard</small>Readings that cannot be scored keep a reason. Unscored never means normal.</div>
+  </div>
+</body>
+</html>

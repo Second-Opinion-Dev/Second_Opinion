@@ -21,7 +21,7 @@ NL = {
     "Source rows from the 90 days up to the case date. The dashed line marks the case date; repeated dates remain separate.": "Bronmetingen in de 90 dagen tot de meldingsdatum. De stippellijn geeft de meldingsdatum aan; meerdere metingen per dag blijven apart.",
     "Ranking and explanations come from the supplied results. Confirm the method and its coverage with the analysis team.": "De volgorde en toelichting komen uit de aangeleverde resultaten. Controleer de methode en dekking met het analyseteam.",
     "Select an installation, process and measurement point to inspect recorded history. This view does not detect anomalies.": "Kies een installatie, proces en meetpunt om de meetgeschiedenis te bekijken. Dit scherm detecteert geen afwijkingen.",
-    "Local TAI export not found. Expected data/tai/extracted/.": "De lokale TAI-export is niet gevonden. Verwacht: data/tai/extracted/.",
+    "Local Z-info export not found. Expected data/tai/extracted/.": "De lokale Z-info-export is niet gevonden. Verwacht: data/tai/extracted/.",
     "No measurement-point catalog found.": "Geen overzicht van meetpunten gevonden.", "No installation has both metadata and daily values.": "Geen installatie gevonden met zowel meetpuntgegevens als dagwaarden.",
     "Installation": "Installatie", "Process code": "Procescode", "All processes": "Alle processen", "Find a measurement point": "Zoek een meetpunt", "Name, ID, parameter or unit": "Naam, ID, parameter of eenheid",
     "No points match the selected filters.": "Geen meetpunten gevonden voor deze filters.", "Measurement point": "Meetpunt", "No dated records are available for this selection.": "Geen metingen met een datum beschikbaar voor deze selectie.",
@@ -64,5 +64,5 @@ ABOUT_NL = """Dit lokale prototype combineert een lijst met meldingen met de mee
 
 De lijst gebruikt de aangeleverde volgorde; dit is geen bevestigde kans of ernst. Beoordelingstijd is een aanname tot een operator deze bevestigt. De daggegevens zijn historisch en hebben geen bevestigde afwijkingslabels. Vergelijkingen met andere installaties, grenswaarden, modelevaluatie en effect in de praktijk moeten nog worden gecontroleerd.
 
-Brongegevens en resultaten blijven op deze computer. Commit nooit partnergegevens of sleutels.
+Brongegevens en resultaten blijven op deze computer. Commit nooit meetgegevens of sleutels.
 """

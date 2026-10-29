@@ -32,7 +32,7 @@ def main():
         pd.DataFrame(columns=columns + ['point_metadata_rows', 'exploratory_influent_volume']).to_csv(targets[1], index=False)
     quality = pd.read_csv(root / 'column_quality.csv', dtype=str, keep_default_na=False)
     dictionary = quality[['table', 'column']].drop_duplicates().copy()
-    dictionary['meaning_and_unit'] = 'TODO: confirm with TAI'
+    dictionary['meaning_and_unit'] = 'TODO: confirm with the data provider'
     dictionary.to_csv(targets[2], index=False)
     print('Wrote metadata, literal point-join and provisional dictionary reports. Meanings require expert confirmation.')
 

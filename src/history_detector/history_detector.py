@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Score selected TAI measurements against their own prior daily history.
+"""Score selected measurements against their own prior daily history.
 
 This is a provisional, history-only baseline. It does not infer causes, diagnose
 faults, compare plants, or establish accuracy. Read docs/history_detector/HANDOFF.md.
@@ -509,7 +509,7 @@ def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str =
         'input_preparation_summary': str(prepared / 'summary.json'),
         'measurement': measurement,
         'selection': MEASUREMENTS[measurement],
-        'selection_semantics': 'exploratory; exact operational meaning not confirmed by TAI',
+        'selection_semantics': 'exploratory; exact operational meaning not confirmed by the data provider',
         'config': asdict(config), 'scale_factor': SCALE_FACTOR,
         'thresholds': threshold_summary(thresholds),
         'calibration': None if fixed_threshold is not None else {
@@ -520,7 +520,7 @@ def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str =
         'limitations': ['No peer comparison; each series uses only its own history.',
                         'Threshold target rate is a workload assumption, not a validated false-alarm rate.',
                         'Rules and scores are review prompts, not diagnoses or verified anomalies.',
-                        'Dates and input availability require partner confirmation.'],
+                        'Dates and input availability require confirmation by the data provider.'],
     }
     (output / 'run_info.json').write_text(json.dumps(run_info, indent=2), encoding='utf-8')
     print('Historical scoring complete. Outputs are private and provisional.')
@@ -528,7 +528,7 @@ def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str =
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--prepared', type=Path, required=True, help='Completed full TAI preparation directory')
+    parser.add_argument('--prepared', type=Path, required=True, help='Completed full preparation directory')
     parser.add_argument('--output', type=Path, required=True, help='New or empty private output directory')
     parser.add_argument('--window-days', type=int, default=28)
     parser.add_argument('--minimum-history', type=int, default=14)

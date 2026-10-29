@@ -2,11 +2,13 @@
 """Run the whole Second Opinion pipeline, skipping stages that are already done.
 
 Each stage is a separate process that runs an existing script through its own
-command line: download -> prepare -> verify -> detect (per group) -> forest (per
-group) -> optional synthetic faults (per group). A stage is skipped when its
-output is complete and nothing it depends on has changed: its script, its
-arguments and every upstream stage are fingerprinted in a state file. Existing
-outputs are never deleted; an output that must be redone is moved aside first.
+command line: prepare -> verify -> detect (per group) -> forest (per group) ->
+optional synthetic faults (per group). The raw export must already be in
+data/tai/extracted/ (Installations/, MeasurementPoints/, MeasurementValues/).
+A stage is skipped when its output is complete and nothing it depends on has
+changed: its script, its arguments and every upstream stage are fingerprinted in
+a state file. Existing outputs are never deleted; an output that must be redone
+is moved aside first.
 
     python3 src/pipeline.py --plan                 # show what would run or be skipped
     python3 src/pipeline.py                        # run everything that is not done
@@ -15,7 +17,7 @@ outputs are never deleted; an output that must be redone is moved aside first.
     python3 src/pipeline.py --force detect         # redo all detector stages and downstream
     python3 src/pipeline.py --jobs 3               # run up to three independent stages at once
 
-Outputs and logs are private partner-derived data under data/tai/; keep them out of Git.
+Outputs and logs are derived from private measurement data under data/tai/; keep them out of Git.
 """
 
 import argparse
@@ -34,7 +36,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'src'
 DATA = ROOT / 'data' / 'tai'
 SCRIPTS = {
-    'download': SRC / 'data_prep' / 'download.py',
     'prepare': SRC / 'data_prep' / 'tai_pipeline.py',
     'verify': SRC / 'data_prep' / 'tai_verify.py',
     'detect': SRC / 'history_detector' / 'history_detector.py',
@@ -92,10 +93,8 @@ def build_stages(root: Path, groups: list[str], smoke: int | None, with_faults: 
     partial = ['--max-points', str(smoke)] if smoke else []
     detector_status = ('smoke_run_partial',) if smoke else ('provisional_unvalidated',)
     stages = [
-        Stage('download', SCRIPTS['download'], ['tai'], raw, lambda: extracted_done(raw),
-              adoptable=True, fresh_output=False),
         Stage('prepare', SCRIPTS['prepare'], ['--raw', str(raw), '--output', str(prepared)], prepared,
-              lambda: prepared_done(prepared), needs=['download'], code=[SCRIPTS['prepare']], adoptable=True),
+              lambda: prepared_done(prepared), code=[SCRIPTS['prepare']], adoptable=True),
         # Verification writes nothing; its recorded run is its completion marker.
         Stage('verify', SCRIPTS['verify'], [str(prepared)], None, lambda: True,
               needs=['prepare'], code=[SCRIPTS['verify']], fresh_output=False),
@@ -136,7 +135,7 @@ def fingerprint(stage: Stage, upstream: dict[str, str]) -> str:
 
 
 def state_key(stage: Stage) -> str:
-    # Shared stages (download, prepare, verify) have one entry; per-run stages differ by output.
+    # Shared stages (prepare, verify) have one entry; per-run stages differ by output.
     return stage.name if stage.output is None else f'{stage.name}|{stage.output}'
 
 
@@ -289,8 +288,11 @@ def main() -> None:
     unknown = [name for name in args.force if name not in known]
     if unknown:
         parser.error(f'unknown stage(s) {unknown}; choose from {sorted(known)}')
+    if not extracted_done(DATA / 'extracted'):
+        parser.error(f"no raw export found in {DATA / 'extracted'}; expected nonempty "
+                     f"{', '.join(TABLES)} folders of .csv.gz files")
     print(f'Pipeline outputs: {root}', flush=True)
-    # One state file for all runs, so smoke and full runs share download, prepare and verify.
+    # One state file for all runs, so smoke and full runs share prepare and verify.
     execute(stages, DATA / 'pipeline_state.json', args.force, args.plan, logs=root / 'logs', jobs=args.jobs)
     print('Plan only; nothing was run.' if args.plan else 'Pipeline complete. Outputs are private and provisional.')
 

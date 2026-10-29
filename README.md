@@ -1,98 +1,157 @@
-# Second Opinion — AI for Water
+<p align="center">
+  <img src="docs/assets/banner.png" alt="Second Opinion: spot unusual measurements, compare the evidence, and decide what to check first." width="100%">
+</p>
 
-Second Opinion helps wastewater operators investigate unusual TAI / Z-info measurements. It compares each reading with its own recent history, groups flagged days into cases and offers an experimental Isolation Forest as a second ranking. An operator decides what to investigate; neither detector diagnoses a fault.
+<p align="center">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-9fd8ea?style=flat-square&labelColor=04090d">
+  <img alt="scikit-learn Isolation Forest" src="https://img.shields.io/badge/AI%20layer-Isolation%20Forest-9fd8ea?style=flat-square&labelColor=04090d">
+  <img alt="Streamlit dashboard" src="https://img.shields.io/badge/dashboard-Streamlit-9fd8ea?style=flat-square&labelColor=04090d">
+  <img alt="Status: research prototype" src="https://img.shields.io/badge/status-research%20prototype-f0a35e?style=flat-square&labelColor=04090d">
+</p>
 
-There are no confirmed anomaly labels. The selected measurement groups and their meanings remain exploratory; real-world accuracy, false-alarm reduction and time savings have not been established. A dashboard and feedback workflow are proposals, not implemented components. See [idea.md](idea.md) for the problem, methodology and limitations.
+<p align="center">
+  <a href="#why">Why</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#interpreting-results">Interpreting results</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="#team">Team</a>
+</p>
 
-## Pipeline
+---
 
-```text
-TAI download → prepare and retain provenance → verify
-  → history detector + data-quality rules → per-plant ranked cases
-  → optional Isolation Forest → separate scores and comparison
-  → optional artificial-fault evaluation (history detector)
-```
+**Second Opinion** helps wastewater treatment operators decide which unusual measurements are worth checking first. It compares each daily reading with the recent history of **the same measurement point**, flags readings that deviate or look like a broken sensor, groups flagged days into cases, and ranks them **per plant**. An experimental Isolation Forest adds a second, independent ranking.
 
-The driver runs the history detector and a separate Isolation Forest for each group: `influent_volume`, `oxygen`, `ammonium`, `nitrate`, `suspended_solids` and `temperature`. These are narrow exploratory metadata filters, not every reading of those types; their meaning and availability need confirmation from TAI. The history detector remains independently usable. No peer comparison is implemented.
+Second Opinion supports the operator's judgement and does not replace it. A flag is a reason to look, not a diagnosis, a confirmed fault or proof that everything else is fine.
 
-| Component | Purpose | Documentation |
+## Why
+
+Plants record thousands of measurements every day, and most validation relies on fixed limits. Two problems follow:
+
+- **A reading can be unusual for its own point while staying inside a fixed limit.** Limit checks pass it; the operator never sees it.
+- **Review time is finite.** Every unnecessary investigation costs attention, so a useful tool has to rank, not just alarm.
+
+The data has no confirmed anomaly labels, so Second Opinion is built to be transparent rather than clever. Every flag shows the value, the historical median, the robust spread, the rule that fired and the source row it came from.
+
+## How it works
+
+<p align="center">
+  <img src="docs/assets/pipeline.png" alt="Pipeline: prepare, score, group, investigate, with an Isolation Forest in parallel" width="100%">
+</p>
+
+| Stage | What it does | Code |
 | --- | --- | --- |
-| Data preparation | Download, retain source rows and flag quality issues | [Data preparation](docs/data_prep/README.md) |
-| History detector | Score prior history, apply rules and group cases | [History detector](docs/history_detector/README.md) |
-| Isolation Forest | Rank eligible readings using history-based features | [Isolation Forest](docs/isolation_forest/README.md) |
+| **Prepare** | Streams a Z-info table export (`Installations`, `MeasurementPoints`, `MeasurementValues`), keeps every row with its source file and row number, parses dates and values, and flags quality issues without deleting, imputing or converting anything. | [`src/data_prep/`](src/data_prep/) |
+| **Detect** | Scores each reading against the prior 28 days of its own series using a rolling median and a floored MAD spread, with thresholds calibrated per series. Rules catch stuck sensors, dropouts to zero and negative values. | [`src/history_detector/`](src/history_detector/) |
+| **Group** | Merges nearby flagged days into cases and ranks them within each plant: rule hits first, then duration, then peak score. | [`src/history_detector/`](src/history_detector/) |
+| **Second view** | Fits one Isolation Forest per measurement group on six history-based features, trained chronologically (train ≤ 2023, validate 2024, hold out 2025). | [`src/isolation_forest/`](src/isolation_forest/) |
+| **Review** | A local Streamlit dashboard shows flagged readings, their history and the evidence, in Dutch or English. | [`dashboard/`](dashboard/) |
 
-## Setup
+<p align="center">
+  <img src="docs/assets/detector.png" alt="Illustration of the history detector on a synthetic series: rolling median, usual range and flagged spike, stuck and dropout periods" width="100%">
+</p>
 
-Use Python 3.11 or newer. From the repository root, on macOS or Linux:
+The pipeline covers six exploratory measurement groups: influent volume, and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature. Each is a narrow metadata filter, not every reading of that type. Plants are never compared with each other, because they differ in geography, process and timing, and each has its own operator.
+
+See the [methodology](docs/methodology.md) for the full method, design choices and limitations.
+
+## Quick start
+
+### 1. Install
+
+Use Python 3.11 or newer. From the repository root:
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python -m pip install -r dashboard/requirements.txt   # only for the dashboard
 ```
 
-On Windows PowerShell, use `python -m venv .venv`, then `.venv\Scripts\Activate.ps1`, followed by the same pip install command. Requirements are unpinned; record `python --version` and `python -m pip freeze` with results you need to reproduce. Model files are version-sensitive: use trusted local files and the recorded package versions.
+Requirements are unpinned. Record `python --version` and `python -m pip freeze` alongside any results you need to reproduce.
 
-For a new TAI download, copy `data/.env.example` to `data/.env` and privately add `AISO_API_KEY` from the participant briefing. Alternatively set the environment variable in your shell. The key was issued for the event and its availability may have expired. Never paste it into Git, documentation, chat or shell history.
+### 2. Provide data
 
-## Run
+Second Opinion reads a **Z-info table export** of daily measurements. No data ships with this repository. Place your export at:
 
-From the repository root:
+```text
+data/tai/extracted/
+├── Installations/*.csv.gz
+├── MeasurementPoints/*.csv.gz
+└── MeasurementValues/*.csv.gz
+```
+
+`data/` is git-ignored. Measurement data, prepared files, scores and fitted models are derived from operational data, so keep them local and never commit them.
+
+### 3. Run the pipeline
 
 ```bash
-python src/pipeline.py --plan                           # inspect planned actions
-python src/pipeline.py --smoke 30                       # partial run, 30 points per group
+python src/pipeline.py --plan                           # show what would run or be skipped
+python src/pipeline.py --smoke 30                       # quick partial run, 30 points per group
 python src/pipeline.py                                  # full run
-python src/pipeline.py --groups oxygen --force detect   # rerun oxygen detection and downstream
-python src/pipeline.py --with-faults                    # optional artificial-fault evaluation
+python src/pipeline.py --groups oxygen --force detect   # redo oxygen detection and downstream
+python src/pipeline.py --with-faults                    # add the artificial-fault evaluation
 python src/pipeline.py --jobs 3                         # run up to three independent stages at once
-python -B -m unittest discover -s tests -t . -v        # synthetic-fixture tests
 ```
 
-The smoke run still requires full preparation; it limits points in downstream stages and is not a complete analysis. `--plan` performs no stages. The driver reuses complete outputs when its fingerprints match, records state in `data/tai/pipeline_state.json`, and moves existing outputs aside with an `.old-<timestamp>` suffix before a rerun. Review the plan and allow substantial time and disk space for full preparation. Outputs and logs are under `data/tai/pipeline/` or `data/tai/pipeline_smoke<N>/`; see the component handoffs for individual commands and other paths.
+The driver fingerprints each stage's script, arguments and upstream stages in `data/tai/pipeline_state.json` and skips stages that are already complete and unchanged. It never deletes output: anything that must be redone is first renamed `<name>.old-<timestamp>`. Outputs and one log per stage go to `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`). Full preparation needs substantial time and disk space. Each detector holds its whole group in memory, so check free RAM before raising `--jobs`.
 
-With `--jobs N`, each stage starts once the stages it needs have finished, up to N at a time; only the driver writes the state file. If a stage fails, no new stage starts, running stages finish and are recorded, and a rerun resumes from there. Each detector holds its whole group in memory, so check free RAM before raising N. A 20-point smoke run of all six groups took 64 s with `--jobs 3`, against about 3 minutes of stage time run one at a time.
+### 4. Open the dashboard
+
+```bash
+python -m streamlit run dashboard/app.py --server.address 127.0.0.1
+```
+
+### 5. Run the tests
+
+```bash
+python -B -m unittest discover -s tests -t . -v
+python -B -m unittest discover -s dashboard -p "test_*.py" -v
+```
+
+All tests use small artificial fixtures, never real measurements.
 
 ## Interpreting results
 
-The history score describes deviation from a point's prior median, and rules flag selected data-quality patterns. Unscored readings have reasons and must not be treated as normal. The Isolation Forest scores unusual combinations of history-based features; its score is not a probability or a diagnosis. Its held-out comparison uses the same eligible readings and a stated per-plant, per-day review budget. Artificial-fault recovery and overlap are not real-world accuracy; expert review is needed to establish usefulness and operator costs.
+- **History score:** distance from the point's prior median, in robust spreads. It is not a probability or a severity.
+- **Rules:** stuck, dropout and negative are data-quality prompts, independent of the score.
+- **Unscored:** every unscored reading carries a reason (insufficient history, same-day duplicates, invalid value, constant zero, …). Unscored never means normal.
+- **Isolation Forest score:** a higher score means a rarer combination of features. It is not a fault probability, and scores from different group models are not comparable.
+- **Evaluation:** the comparisons between the two methods are descriptive and use the same per-plant daily review budget. Recovery of artificial faults is not real-world accuracy. Without labelled incidents or expert review, Second Opinion makes **no claims** about precision, recall, false-alarm reduction or time saved.
+
+## Documentation
+
+| Guide | Covers |
+| --- | --- |
+| [Methodology](docs/methodology.md) | Problem framing, the full method, design decisions and limitations |
+| [Data preparation](docs/data_prep/README.md) | Input format, preparation outputs, verification and supplementary reports |
+| [History detector](docs/history_detector/README.md) | Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation |
+| [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
+| [Dashboard](dashboard/README.md) | The operator prototype and the dry-weather exploration |
+| [Presentation](slide_deck/) | Seven-slide overview (`index.html`, PDF export and speaker notes) |
 
 ## Repository layout
 
 ```text
 src/pipeline.py              Pipeline driver
-src/data_prep/               Download, preparation and reports
+src/data_prep/               Preparation, verification and data reports
 src/history_detector/        History detector and artificial-fault evaluation
 src/isolation_forest/        Experimental Isolation Forest
-tests/                       Automated synthetic-fixture tests
-docs/                        Component guides, audits, decisions and handoffs
-data/                        Local partner data and outputs (ignored)
-idea.md                      Project framing and detailed methodology
-requirements.txt             Core Python dependencies
-AGENTS.md, .agents/          Agent instructions and team workflow
+dashboard/                   Streamlit operator prototype
+tests/                       Synthetic-fixture tests
+docs/                        Methodology, component guides and README graphics
+slide_deck/                  Project presentation
+data/                        Local data and outputs (git-ignored)
 ```
 
-Partner data, derived outputs, fitted models and credentials must stay local and out of Git. Never modify raw data in place. The briefing restricts data to the hackathon and requires deletion afterwards unless the partner agrees otherwise in writing. Work on a named branch and open a pull request into `main`; see [the team workflow](.agents/skills/branch-and-pr/SKILL.md).
-A stage is skipped when its output is complete and its script, arguments and upstream
-stages are unchanged; these are fingerprinted in `data/tai/pipeline_state.json`. A complete
-download or preparation made before the driver existed is adopted as done. Outputs go to
-`data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`), with one log per stage in `logs/`.
-Nothing is deleted: an output that must be redone is renamed `<name>.old-<timestamp>`
-first. The download stage needs `AISO_API_KEY` (see `data/.env.example`). All outputs are
-private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest discover -s tests -t .`.
+## Status and limitations
 
-## Provisional TAI history detector
+Second Opinion is a research prototype run on historical, day-level data. It is not a live alerting system. Measurement meanings, units, reporting periods and observation availability have to be confirmed with whoever supplies the data. The thresholds encode an assumed review workload, roughly 1% of readings, not a validated false-alarm rate. Next steps would be expert review of a documented sample of flagged and unflagged cases, persistent operator feedback, and a comparison against the validation limits that actually applied at the time.
 
-`src/history_detector/history_detector.py` implements a history-only rolling median/MAD
-detector for six separate exploratory slices: influent volume and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature.
-It has not been validated against real labels or operator review. Read
-`docs/history_detector/HANDOFF.md` for selection, setup, commands and limitations.
+## Team
 
-## Experimental Isolation Forest
-
-`src/isolation_forest/model.py` uses prior-history features to rank eligible readings.
-Run a separate forest for each selected slice; it retains the history baseline
-and does not use peer comparisons. The model is
-experimental; no labelled real-world accuracy is established. See
-`docs/isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
-private artifact handling.
+Built by
+[Joshua Varghese Thomji](https://github.com/josh1221wa),
+[Sunil Parameswaran](https://github.com/SunilParameswaran),
+[S Smriti](https://github.com/smritis21) and
+[Oindrilla](https://github.com/oindrilla007).

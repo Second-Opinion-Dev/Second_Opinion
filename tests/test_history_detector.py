@@ -14,7 +14,7 @@ FIXED = Thresholds(3.5, 3.5)
 
 
 def series(values, start='2022-01-01', dates=None, point='fixture-point'):
-    """Artificial records, never derived from partner data. None marks a blank value."""
+    """Artificial records, never derived from real measurements. None marks a blank value."""
     dates = pd.date_range(start, periods=len(values), freq='D') if dates is None else pd.to_datetime(dates)
     frame = pd.DataFrame({column: ['fixture'] * len(values) for column in SERIES_COLUMNS})
     frame['MeasurementPointID'] = point

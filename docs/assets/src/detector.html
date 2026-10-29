@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!-- README detector illustration on a synthetic series. Render: see docs/assets/src/README.md -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Second Opinion detector illustration</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono&display=swap">
+<style>
+:root{--bg:#04090d;--ink:#e9eef0;--mute:#8fa1a8;--line:rgba(233,238,240,.18);--acc:#9fd8ea;--flag:#f0a35e;
+--sans:"Inter",system-ui,sans-serif;--serif:"Instrument Serif",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{width:1280px;height:520px;overflow:hidden}
+body{background:radial-gradient(ellipse at 25% 20%,#0b2a38,#04090d 70%);color:var(--ink);font:300 17px/1.45 var(--sans);-webkit-font-smoothing:antialiased;padding:44px 64px}
+.k{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px;font:400 13px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+h2{margin-top:24px;font:400 50px/1 var(--serif);letter-spacing:-.015em}
+h2 em{color:var(--acc)}
+svg{display:block;margin-top:20px}
+.ax{font:400 12px var(--mono);letter-spacing:.08em;fill:var(--mute)}
+.lab{font:400 12px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.legend{display:flex;gap:34px;margin-top:8px;font:400 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.legend i{display:inline-block;width:26px;height:3px;margin-right:10px;vertical-align:middle}
+.legend .sp{margin-left:auto}
+</style>
+</head>
+<body>
+  <div class="k"><span>Second Opinion // history detector</span><span>Each point keeps its own history</span></div>
+  <h2>Learn what is <em>usual here,</em> then flag what is not.</h2>
+  <svg id="chart" width="1152" height="300" viewBox="0 0 1152 300"></svg>
+  <div class="legend">
+    <span><i style="background:#8fa1a8;opacity:.7"></i>Daily reading</span>
+    <span><i style="background:#9fd8ea"></i>Prior 28-day median</span>
+    <span><i style="background:rgba(159,216,234,.25);height:10px"></i>Usual range</span>
+    <span><i style="background:#f0a35e;height:8px;width:8px;border-radius:50%"></i>Flagged</span>
+    <span class="sp">Illustration · synthetic series, not real data</span>
+  </div>
+<script>
+/* Simplified version of the detector on a seeded artificial series: rolling prior
+   median and floored MAD spread, a fixed threshold, plus the stuck and dropout rules. */
+(function(){
+  var seed=7;function rnd(){seed=(seed*16807)%2147483647;return (seed-1)/2147483646;}
+  function gauss(){return Math.sqrt(-2*Math.log(rnd()+1e-9))*Math.cos(2*Math.PI*rnd());}
+  var N=150,y=[];
+  for(var i=0;i<N;i++){y.push(52+5*Math.sin(i/9)+i*.04+gauss()*1.6);}
+  y[62]+=17;                                      // one-day spike
+  for(var i=96;i<106;i++)y[i]=y[95];               // stuck value for 10 days
+  y[128]=0;y[129]=0;                               // dropout to zero
+  function median(a){var s=a.slice().sort(function(p,q){return p-q;}),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+  var W=28,MIN=14,T=4,CLIP=3.5,hist=[],med=[],lo=[],hi=[],flag=[],why=[];
+  for(var t=0;t<N;t++){
+    var win=hist.slice(Math.max(0,t-W),t).filter(function(v){return v!==null;});
+    if(win.length<MIN){med.push(null);lo.push(null);hi.push(null);flag.push(false);why.push('');hist.push(y[t]);continue;}
+    var m=median(win),mad=median(win.map(function(v){return Math.abs(v-m);})),sp=Math.max(1.4826*mad,.05*Math.abs(m));
+    med.push(m);lo.push(m-T*sp);hi.push(m+T*sp);
+    var stuck=t>=6&&y.slice(t-6,t+1).every(function(v){return v===y[t];})&&new Set(win).size>1;
+    var drop=y[t]===0&&win.every(function(v){return v!==0;})||(y[t]===0&&y[t-1]===0&&flag[t-1]);
+    var stat=Math.abs(y[t]-m)/sp>=T;
+    flag.push(stat||stuck||drop);why.push(drop?'dropout':stuck?'stuck':stat?'unusual high':'');
+    hist.push(Math.min(Math.max(y[t],m-CLIP*sp),m+CLIP*sp));   // clipped history
+  }
+  var svg=document.getElementById('chart'),NS='http://www.w3.org/2000/svg',L=46,R=1140,TOP=14,B=270,ymin=-4,ymax=82;
+  function X(i){return L+(R-L)*i/(N-1);}function Y(v){return B-(B-TOP)*(v-ymin)/(ymax-ymin);}
+  function el(n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);svg.appendChild(e);return e;}
+  [0,20,40,60,80].forEach(function(v){el('line',{x1:L,x2:R,y1:Y(v),y2:Y(v),stroke:'rgba(233,238,240,.08)'});var t=el('text',{x:L-10,y:Y(v)+4,'text-anchor':'end','class':'ax'});t.textContent=v;});
+  [0,30,60,90,120].forEach(function(d){var t=el('text',{x:X(d),y:B+22,'class':'ax','text-anchor':'middle'});t.textContent='day '+d;});
+  var band='',top=[],bot=[];
+  for(var i=0;i<N;i++)if(med[i]!==null){top.push(X(i)+','+Y(Math.min(hi[i],ymax)));bot.unshift(X(i)+','+Y(Math.max(lo[i],ymin)));}
+  el('polygon',{points:top.concat(bot).join(' '),fill:'rgba(159,216,234,.12)'});
+  el('polyline',{points:y.map(function(v,i){return X(i)+','+Y(v);}).join(' '),fill:'none',stroke:'#8fa1a8','stroke-opacity':.7,'stroke-width':1.6});
+  var mp=[];for(var i=0;i<N;i++)if(med[i]!==null)mp.push(X(i)+','+Y(med[i]));
+  el('polyline',{points:mp.join(' '),fill:'none',stroke:'#9fd8ea','stroke-width':2.4});
+  el('rect',{x:X(0),y:TOP,width:X(MIN)-X(0),height:B-TOP,fill:'rgba(233,238,240,.03)'});
+  var w=el('text',{x:X(0)+8,y:TOP+16,'class':'lab',fill:'#8fa1a8'});w.textContent='warm-up: unscored';
+  var labelled={};
+  for(var i=0;i<N;i++)if(flag[i]){
+    el('circle',{cx:X(i),cy:Y(y[i]),r:5,fill:'none',stroke:'#f0a35e','stroke-width':2.2});
+    if(!labelled[why[i]]){labelled[why[i]]=1;var up=why[i]==='unusual high';
+      var tx=el('text',{x:X(i)+(why[i]==='dropout'?-12:10),y:up?Y(y[i])-12:why[i]==='dropout'?Y(y[i])-14:Y(y[i])+28,'class':'lab',fill:'#f0a35e','text-anchor':why[i]==='dropout'?'end':'start'});
+      tx.textContent=why[i]==='stuck'?'stuck · 7+ equal days':why[i];}
+  }
+})();
+</script>
+</body>
+</html>

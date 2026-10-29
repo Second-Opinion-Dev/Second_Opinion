@@ -13,7 +13,7 @@ from history_detector.history_detector import (DetectorConfig, MEASUREMENTS, QUA
 
 
 def raw_fixture(days=40, start='2022-01-01', point='fixture-point'):
-    """Artificial records, never derived from partner data."""
+    """Artificial records, never derived from real measurements."""
     dates = pd.date_range(start, periods=days, freq='D')
     frame = pd.DataFrame({column: ['fixture'] * days for column in SERIES})
     frame['MeasurementPointID'] = point
