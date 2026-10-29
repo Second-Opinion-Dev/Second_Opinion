@@ -203,6 +203,22 @@ python src/pipeline.py             <span class="c"># full run</span></code></pre
 <script>
 (function(){
   var rm=matchMedia('(prefers-reduced-motion:reduce)').matches,t=document.getElementById('ttl'),hero=document.getElementById('hero'),pg=document.getElementById('pg');
+
+  // Right and left arrow keys jump to the next or previous section; up and down still scroll normally.
+  var sections=[].slice.call(document.querySelectorAll('#hero, section.s')),aim=null,aimAt=0;
+  addEventListener('keydown',function(e){
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    if(e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||e.defaultPrevented)return;
+    if(e.target.closest&&e.target.closest('input, textarea, select, [contenteditable]'))return;
+    e.preventDefault();
+    var tops=sections.map(function(s){return Math.round(s.getBoundingClientRect().top+scrollY);}),i;
+    // While a smooth scroll is still under way, step on from where it is heading.
+    var y=aim!==null&&performance.now()-aimAt<900?aim:Math.round(scrollY);
+    if(e.key==='ArrowRight'){i=tops.findIndex(function(top){return top>y+4;});if(i<0)i=tops.length-1;}
+    else{for(i=tops.length-1;i>0&&tops[i]>=y-4;i--);}
+    aim=tops[i];aimAt=performance.now();
+    scrollTo({top:tops[i],behavior:rm?'auto':'smooth'});
+  });
   function split(el,L){var n=0;el.setAttribute('aria-label',el.textContent.replace(/\s+/g,' ').trim());(function w(node){[].slice.call(node.childNodes).forEach(function(c){
     if(c.nodeType===3){var f=document.createDocumentFragment();
       (L?c.textContent.split(''):c.textContent.split(/(\s+)/)).forEach(function(p){if(!p)return;
