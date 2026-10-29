@@ -244,7 +244,7 @@ if page == "queue":
 elif page == "daily":
     st.header(t("Daily measurement table"))
     if not DATA.is_dir():
-        st.error(t("Local TAI export not found. Expected data/tai/extracted/."))
+        st.error(t("Local Z-info export not found. Expected data/tai/extracted/."))
         st.stop()
     points, names = load_catalog()
     available = {p.name[:-7] for p in (DATA / "MeasurementValues").glob("*.csv.gz")}
@@ -290,7 +290,7 @@ elif page == "explore":
     st.header(t("Explore measurements"))
     st.write(t("Select an installation, process and measurement point to inspect recorded history. This view does not detect anomalies."))
     if not DATA.is_dir():
-        st.error(t("Local TAI export not found. Expected data/tai/extracted/."))
+        st.error(t("Local Z-info export not found. Expected data/tai/extracted/."))
         st.stop()
     points, names = load_catalog()
     available = {p.name[:-7] for p in (DATA / "MeasurementValues").glob("*.csv.gz")}
@@ -391,7 +391,7 @@ else:
 
 The queue uses the supplied order, not a verified probability or severity. Review-time estimates are assumptions until confirmed by operators. The daily export is historical and has no confirmed anomaly labels. Peer context, existing limits, model evaluation and real-world impact remain unverified until supplied and checked by the team.
 
-Source data and results remain on this computer. Never commit partner data or keys.
+Source data and results remain on this computer. Never commit measurement data or keys.
 """)
 
 st.markdown(f'<div class="app-footer">{t("Local prototype · Historical daily data · No automatic validation")}</div>', unsafe_allow_html=True)

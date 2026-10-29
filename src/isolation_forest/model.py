@@ -256,7 +256,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
                 'eligible_by_split': {str(k): int(v) for k, v in data.loc[eligible, 'split'].value_counts().items()},
                 'evaluation': results,
                 'caveats': ['Historical daily data; observation availability time is unconfirmed.',
-                            'Selection and meaning require TAI confirmation.',
+                            'Selection and meaning require confirmation by the data provider.',
                             'No expert-reviewed labels: no measured real-world accuracy or false-alarm rate.',
                             'Per-plant daily budget is an assumption; selection is descriptive, not safe suppression.',
                             'Saved models must be loaded only from trusted local sources.']}

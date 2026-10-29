@@ -32,7 +32,7 @@ def main():
             status = 'blank' if not key.strip() else ('unmatched' if not matches else ('unique' if matches == 1 else 'would_multiply'))
             rows.append({'role': role, 'literal_key': key, 'measurement_rows': n, 'metadata_rows': matches, 'potential_inner_join_rows': n * matches, 'join_status': status})
     pd.DataFrame(rows, columns=['role', 'literal_key', 'measurement_rows', 'metadata_rows', 'potential_inner_join_rows', 'join_status']).to_csv(target, index=False)
-    print('Wrote literal installation-key join report. Confirm these key relationships with TAI.')
+    print('Wrote literal installation-key join report. Confirm these key relationships with the data provider.')
 
 
 if __name__ == '__main__':

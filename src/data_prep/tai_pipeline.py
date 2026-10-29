@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stream TAI exports into private, traceable cleaned files and quality reports."""
+"""Stream Z-info table exports into private, traceable cleaned files and quality reports."""
 import argparse
 from collections import Counter
 import gzip
@@ -102,7 +102,7 @@ def run(raw: Path, output: Path, limit: int | None, chunksize: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--raw', type=Path, required=True, help='Directory containing the three TAI table folders')
+    parser.add_argument('--raw', type=Path, required=True, help='Directory containing the three Z-info table folders')
     parser.add_argument('--output', type=Path, required=True, help='New or empty private output directory')
     parser.add_argument('--chunksize', type=int, default=100000)
     parser.add_argument('--limit-files', type=int, help='For a partial smoke test only')

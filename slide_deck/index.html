@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Second Opinion — Pitch Deck</title>
+<title>Second Opinion — Presentation</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono&display=swap">
 <style>
 :root{--bg:#04090d;--ink:#e9eef0;--mute:#8fa1a8;--line:rgba(233,238,240,.18);--acc:#9fd8ea;
@@ -139,10 +139,10 @@ h2 em{color:var(--acc)}
 
 <!-- 1 · Title -->
 <section class="slide" id="s1">
-  <div class="top r">TAI / Z-info challenge<br>AISO Hackathon · AI for Water</div>
+  <div class="top r">Built for TAI / Z-info<br>Measurement validation for wastewater</div>
   <h1 id="ttl">Second<br><em>opinion</em></h1>
   <p class="tl r">Spot unusual measurements, compare the evidence, and decide what to check first.</p>
-  <div class="meta r"><div><b>Product</b>Investigation support</div><div><b>For</b>Wastewater plant operators</div><div><b>Exploring</b>Volume · oxygen · ammonium</div></div>
+  <div class="meta r"><div><b>Product</b>Investigation support</div><div><b>For</b>Wastewater plant operators</div><div><b>Covers</b>Six measurement groups</div></div>
 </section>
 
 <!-- 2 · Problem -->
@@ -157,7 +157,7 @@ h2 em{color:var(--acc)}
         <div class="row r"><b>More than limits</b><span>A reading can be unusual for its own point even when it is within a fixed limit.</span></div>
         <div class="row r"><b>Review takes time</b><span>Every unnecessary investigation costs an operator attention and time.</span></div>
       </div>
-      <div class="stat r"><div class="n">~30,000</div><p>new measurement points every day, across ~321 plants</p><small>TAI mentor briefing figures, not dataset counts</small></div>
+      <div class="stat r"><div class="n">28</div><p>days of a point&#39;s own history decide what is usual for it</p><small>No comparison between plants</small></div>
     </div>
   </div>
 </section>
@@ -169,7 +169,7 @@ h2 em{color:var(--acc)}
   <div class="body">
     <h2>From measurements <em>to review.</em></h2>
     <div class="cols c4 r" style="margin-top:64px">
-      <div class="col"><small>01 // INPUT</small><h3>Prepare</h3><p>Read the TAI export. Select three exploratory measurement groups and preserve source and point context.</p></div>
+      <div class="col"><small>01 // INPUT</small><h3>Prepare</h3><p>Read the Z-info export. Select six exploratory measurement groups and preserve source and point context.</p></div>
       <div class="col"><small>02 // DETECT</small><h3>Score</h3><p>Compare each point with its own history; apply simple data-quality rules.</p></div>
       <div class="col"><small>03 // ORGANISE</small><h3>Group</h3><p>Combine flagged days into cases and rank them within each plant.</p></div>
       <div class="col"><small>04 // REVIEW</small><h3>Investigate</h3><p>Show the evidence, unscored reasons and optional AI scores to support review.</p></div>
@@ -201,7 +201,7 @@ h2 em{color:var(--acc)}
     <h2>Spot an unusual <em>combination.</em></h2>
     <div class="cols c3 r" style="margin-top:64px">
       <div class="col"><small>01 // FEATURES</small><h3>Six signals</h3><p>Deviation, daily change, recent deviation, relative level, zero and repeated days.</p></div>
-      <div class="col"><small>02 // MODEL</small><h3>Three forests</h3><p>One model per measurement group learns unusual combinations of history-based features.</p></div>
+      <div class="col"><small>02 // MODEL</small><h3>One per group</h3><p>One model per measurement group learns unusual combinations of history-based features.</p></div>
       <div class="col"><small>03 // ROLE</small><h3>Second view</h3><p>Compare its ranking with the history detector. It does not replace the primary case queue.</p></div>
     </div>
     <div class="out r" style="margin-top:55px;font-size:39px"><small>Interpretation</small>A higher score means a rarer feature pattern, not a fault probability or diagnosis.</div>
@@ -236,7 +236,7 @@ h2 em{color:var(--acc)}
       <div class="col r"><h3>Compare</h3><p>Consult the optional AI ranking.</p></div>
       <div class="col r"><h3>Decide</h3><p>An operator investigates and records feedback.</p></div>
     </div>
-    <div class="foot r"><span>Case view and feedback workflow are proposed; <b>the operator decides.</b></span><span>Second Opinion · AISO Hackathon</span></div>
+    <div class="foot r"><span>Case view and feedback workflow are proposed; <b>the operator decides.</b></span><span>Second Opinion · Built for TAI / Z-info</span></div>
   </div>
 </section>
 
