@@ -1,29 +1,23 @@
-# Second Opinion — AI for Water
+# Second Opinion
 
-Second Opinion helps wastewater operators investigate unusual TAI / Z-info measurements. It compares each reading with its own recent history, groups flagged days into cases and offers an experimental Isolation Forest as a second ranking. An operator decides what to investigate; neither detector diagnoses a fault.
+Second Opinion is an AI for Water hackathon prototype that helps wastewater operators review unusual measurements. It compares a reading with its own recent history and uses an experimental Isolation Forest to identify uncommon combinations of historical signals. A local dashboard presents previously scored readings for review.
 
-There are no confirmed anomaly labels. The selected measurement groups and their meanings remain exploratory; real-world accuracy, false-alarm reduction and time savings have not been established. A dashboard and feedback workflow are proposals, not implemented components. See [idea.md](idea.md) for the problem, methodology and limitations.
+**Status:** Research prototype, not an operational alarm system. The data has no confirmed anomaly labels, and the measurement definitions require partner confirmation. A flag is a reason to investigate, not a diagnosis. We have not established real-world accuracy, false-alarm reduction or time savings.
 
-## Pipeline
+## What the project does
 
-```text
-TAI download → prepare and retain provenance → verify
-  → history detector + data-quality rules → per-plant ranked cases
-  → optional Isolation Forest → separate scores and comparison
-  → optional artificial-fault evaluation (history detector)
-```
+1. **Prepare:** retain original TAI measurement values, timestamps, source references and quality flags.
+2. **Compare history:** score each eligible reading against the same point's previous 28 calendar days; apply rules for selected quality issues and group flagged days into cases.
+3. **Offer a second opinion:** fit a separate Isolation Forest per selected measurement group, using six features derived from that point's current and previous readings.
+4. **Review:** the local dashboard reads precomputed forest scores and displays individual flagged readings, supporting evidence and a per-metric review budget.
 
-The driver runs the history detector and a separate Isolation Forest for each group: `influent_volume`, `oxygen`, `ammonium`, `nitrate`, `suspended_solids` and `temperature`. These are narrow exploratory metadata filters, not every reading of those types; their meaning and availability need confirmation from TAI. The history detector remains independently usable. No peer comparison is implemented.
+The pipeline supports six exploratory groups: influent volume, oxygen, ammonium, nitrate, suspended solids and temperature. Each group is a narrow metadata selection, not all possible measurements of that type. The default driver runs one forest per group; having code for six groups does not mean all six models or outputs are available in a particular installation. There is no peer comparison.
 
-| Component | Purpose | Documentation |
-| --- | --- | --- |
-| Data preparation | Download, retain source rows and flag quality issues | [Data preparation](docs/data_prep/README.md) |
-| History detector | Score prior history, apply rules and group cases | [History detector](docs/history_detector/README.md) |
-| Isolation Forest | Rank eligible readings using history-based features | [Isolation Forest](docs/isolation_forest/README.md) |
+The history detector's grouped cases and the dashboard's individual forest-flagged reading queue are separate outputs. The dashboard does not load fitted models or run new inference. Its review checkboxes last only for the browser session. See [the dashboard guide](dashboard/README.md) for current behavior and limitations.
 
-## Setup
+## Get started
 
-Use Python 3.11 or newer. From the repository root, on macOS or Linux:
+Use Python 3.11 or newer. From the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -31,68 +25,60 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-On Windows PowerShell, use `python -m venv .venv`, then `.venv\Scripts\Activate.ps1`, followed by the same pip install command. Requirements are unpinned; record `python --version` and `python -m pip freeze` with results you need to reproduce. Model files are version-sensitive: use trusted local files and the recorded package versions.
+On Windows PowerShell, create the environment with `python -m venv .venv` and activate it with `.venv\Scripts\Activate.ps1`. Dependencies are unpinned. For reproducible runs, record `python --version` and `python -m pip freeze` alongside the results.
 
-For a new TAI download, copy `data/.env.example` to `data/.env` and privately add `AISO_API_KEY` from the participant briefing. Alternatively set the environment variable in your shell. The key was issued for the event and its availability may have expired. Never paste it into Git, documentation, chat or shell history.
-
-## Run
-
-From the repository root:
+### Try the dashboard
 
 ```bash
-python src/pipeline.py --plan                           # inspect planned actions
-python src/pipeline.py --smoke 30                       # partial run, 30 points per group
-python src/pipeline.py                                  # full run
-python src/pipeline.py --groups oxygen --force detect   # rerun oxygen detection and downstream
-python src/pipeline.py --with-faults                    # optional artificial-fault evaluation
-python src/pipeline.py --jobs 3                         # run up to three independent stages at once
-python -B -m unittest discover -s tests -t . -v        # synthetic-fixture tests
+python -m streamlit run dashboard/app.py --server.address 127.0.0.1
 ```
 
-The smoke run still requires full preparation; it limits points in downstream stages and is not a complete analysis. `--plan` performs no stages. The driver reuses complete outputs when its fingerprints match, records state in `data/tai/pipeline_state.json`, and moves existing outputs aside with an `.old-<timestamp>` suffix before a rerun. Review the plan and allow substantial time and disk space for full preparation. Outputs and logs are under `data/tai/pipeline/` or `data/tai/pipeline_smoke<N>/`; see the component handoffs for individual commands and other paths.
+Without partner outputs, select the explicitly labelled fictional example plant to explore example temperature, nitrate and suspended-solids readings. These examples are invented and have not been scored by a model. Missing results for the other groups are reported. To use real outputs, point the sidebar at a compatible private results directory; see [dashboard setup](dashboard/README.md).
 
-With `--jobs N`, each stage starts once the stages it needs have finished, up to N at a time; only the driver writes the state file. If a stage fails, no new stage starts, running stages finish and are recorded, and a rerun resumes from there. Each detector holds its whole group in memory, so check free RAM before raising N. A 20-point smoke run of all six groups took 64 s with `--jobs 3`, against about 3 minutes of stage time run one at a time.
+### Run the pipeline
 
-## Interpreting results
+The real TAI dataset and trained models are **not included**. Dataset access was provided for the hackathon and the original key expired after the event; access or reuse requires the partner's permission. If you have authorised local data and valid access, configure `AISO_API_KEY` privately using `data/.env.example` as a template or an environment variable. Never commit or share the key, data, derived results or model files. The partner briefing requires deleting the data after the event unless the partner agrees otherwise in writing.
 
-The history score describes deviation from a point's prior median, and rules flag selected data-quality patterns. Unscored readings have reasons and must not be treated as normal. The Isolation Forest scores unusual combinations of history-based features; its score is not a probability or a diagnosis. Its held-out comparison uses the same eligible readings and a stated per-plant, per-day review budget. Artificial-fault recovery and overlap are not real-world accuracy; expert review is needed to establish usefulness and operator costs.
+```bash
+python src/pipeline.py --plan                      # inspect actions without running stages
+python src/pipeline.py --smoke 30                  # limit downstream work to 30 points per group
+python src/pipeline.py                             # run the full pipeline
+python src/pipeline.py --groups oxygen --force detect
+python src/pipeline.py --with-faults               # optional artificial-fault comparison
+```
 
-## Repository layout
+The driver downloads, prepares and verifies data, then runs the history detector and forest for each selected group. `--smoke` still requires complete preparation and does not represent a full analysis. Full preparation may require substantial time, disk and memory. `--jobs N` runs independent stages concurrently; each detector holds its group in memory. The driver records local state and moves replaced outputs aside with an `.old-<timestamp>` suffix. Results and logs stay under ignored `data/tai/` directories.
+
+For individual steps, consult [data preparation](docs/data_prep/README.md), [history detector](docs/history_detector/README.md) and [Isolation Forest](docs/isolation_forest/README.md).
+
+## Tests
+
+These tests use synthetic fixtures and do not measure operational performance:
+
+```bash
+python -B -m unittest discover -s tests -t . -v
+python -B -m unittest discover -s dashboard -p 'test_*.py' -v
+```
+
+## How to interpret results
+
+The history baseline uses a rolling median and robust spread, with separate rules for selected quality patterns. Ineligible readings remain unscored with reasons; they are not automatically normal. The experimental forest learns unusual combinations of six history-based features. Its score is not a probability, and scores from different group models should not be compared directly.
+
+Default forest training uses data through 2023, validation in 2024 and a held-out period in 2025. A retrospective comparison ranks the same eligible readings under an example per-plant, per-day budget, separately for each group. Artificial-fault recovery, flag counts and ranking overlap do not establish real-world accuracy or savings. Operator review is needed to measure usefulness and the time spent investigating false alarms. See [idea.md](idea.md) for the broader framing.
+
+## Repository map
 
 ```text
-src/pipeline.py              Pipeline driver
-src/data_prep/               Download, preparation and reports
-src/history_detector/        History detector and artificial-fault evaluation
-src/isolation_forest/        Experimental Isolation Forest
-tests/                       Automated synthetic-fixture tests
-docs/                        Component guides, audits, decisions and handoffs
-data/                        Local partner data and outputs (ignored)
-idea.md                      Project framing and detailed methodology
-requirements.txt             Core Python dependencies
-AGENTS.md, .agents/          Agent instructions and team workflow
+src/data_prep/          Data download, preparation and quality reports
+src/history_detector/   History baseline, case grouping and artificial-fault evaluation
+src/isolation_forest/  Experimental AI layer and retrospective comparison
+src/pipeline.py        Pipeline driver
+dashboard/             Local Streamlit review prototype and fictional examples
+tests/                 Synthetic-fixture tests for the pipeline and models
+docs/                  Data audit, decisions, component guides and handoffs
+slide_deck/            Hackathon presentation
+idea.md                Project framing and methodology
+data/                  Private local inputs and outputs, excluded from Git
 ```
 
-Partner data, derived outputs, fitted models and credentials must stay local and out of Git. Never modify raw data in place. The briefing restricts data to the hackathon and requires deletion afterwards unless the partner agrees otherwise in writing. Work on a named branch and open a pull request into `main`; see [the team workflow](.agents/skills/branch-and-pr/SKILL.md).
-A stage is skipped when its output is complete and its script, arguments and upstream
-stages are unchanged; these are fingerprinted in `data/tai/pipeline_state.json`. A complete
-download or preparation made before the driver existed is adopted as done. Outputs go to
-`data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`), with one log per stage in `logs/`.
-Nothing is deleted: an output that must be redone is renamed `<name>.old-<timestamp>`
-first. The download stage needs `AISO_API_KEY` (see `data/.env.example`). All outputs are
-private partner-derived data and stay out of Git. Tests: `python3 -B -m unittest discover -s tests -t .`.
-
-## Provisional TAI history detector
-
-`src/history_detector/history_detector.py` implements a history-only rolling median/MAD
-detector for six separate exploratory slices: influent volume and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature.
-It has not been validated against real labels or operator review. Read
-`docs/history_detector/HANDOFF.md` for selection, setup, commands and limitations.
-
-## Experimental Isolation Forest
-
-`src/isolation_forest/model.py` uses prior-history features to rank eligible readings.
-Run a separate forest for each selected slice; it retains the history baseline
-and does not use peer comparisons. The model is
-experimental; no labelled real-world accuracy is established. See
-`docs/isolation_forest/HANDOFF.md` for the method, commands, tests, comparisons and
-private artifact handling.
+Work on a branch and open a pull request into `main`; see [the team workflow](.agents/skills/branch-and-pr/SKILL.md). Never modify raw partner data in place. Only load model files from trusted sources: `joblib` files can execute code when loaded.
