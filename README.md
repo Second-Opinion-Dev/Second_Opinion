@@ -26,6 +26,8 @@
 
 It is built around measurement data from **TAI's Z-info platform**. The aim is to help TAI and the plant operators who use Z-info catch readings that existing limit-based validation lets through, and to help them spend review time where it matters most.
 
+**This repository contains no TAI, Z-info or plant data.** Every example, illustration and figure in it is synthetic, and the whole pipeline can be run on a [fully simulated export](docs/simulation/README.md).
+
 Second Opinion supports the operator's judgement and does not replace it. A flag is a reason to look, not a diagnosis, a confirmed fault or proof that everything else is fine.
 
 ## Why
