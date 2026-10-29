@@ -73,7 +73,9 @@ def watch(state: dict, lock, stream, interactive: bool, stop: threading.Event, m
         if stopping:
             progress.close(line)
             return
-        progress.show(line)
+        rows, total = snapshot['processed'] + snapshot['skipped'], snapshot['total']
+        counting = snapshot['phase'] == 'indexing' and snapshot['message'] != 'building_indexes' and total
+        progress.show(line, share=min(rows / total, 1.0) if counting else None)
 
 
 def build(server, results: Path, catalog: Path | None, index: Path) -> None:

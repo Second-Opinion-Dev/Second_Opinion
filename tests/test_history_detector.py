@@ -7,7 +7,7 @@ import pandas as pd
 from history_detector.history_detector import (LEGACY_CONFIG, MEASUREMENTS, QUALITY_FLAGS, SERIES_COLUMNS,
                                                DetectorConfig, Thresholds, apply_thresholds,
                                                build_cases, calibrate_thresholds, config_for,
-                                               score_series, select_points)
+                                               score_all, score_series, select_points)
 from history_detector.synthetic_faults import FAULT_DAYS, eligible_positions, inject
 
 FIXED = Thresholds(3.5, 3.5)
@@ -105,6 +105,15 @@ class RuleTest(unittest.TestCase):
     def test_rules_can_be_disabled(self):
         result = score_series(series(varying(20) + [0.0, -1.0]), DetectorConfig(rules=False), FIXED)
         self.assertFalse(result[['rule_stuck', 'rule_dropout', 'rule_negative']].any().any())
+
+
+class ProgressCallbackTest(unittest.TestCase):
+    def test_scoring_reports_each_series_and_keeps_the_result(self):
+        frame = pd.concat([series(varying(40)), series(varying(40), point='other-point')], ignore_index=True)
+        seen = []
+        followed = score_all(frame, DetectorConfig(), on_series=lambda done, total: seen.append((done, total)))
+        self.assertEqual(seen, [(1, 2), (2, 2)])
+        pd.testing.assert_frame_equal(followed, score_all(frame, DetectorConfig()))
 
 
 class GroupSettingsTest(unittest.TestCase):

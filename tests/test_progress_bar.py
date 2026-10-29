@@ -1,5 +1,9 @@
 """Checks of the shared progress line: format, terminal redraws and plain lines elsewhere."""
 import io
+import json
+import os
+from pathlib import Path
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -20,6 +24,24 @@ class ProgressBarTest(unittest.TestCase):
         self.assertEqual(bar.count('#'), len(bar) // 4)
         self.assertNotIn('left', bar_line('Working', 0, '0/4 files', 0))
         self.assertLessEqual(len(bar_line('Working', 0.5, '2/4 files', 30, width=30)), 30)
+
+    def test_steps_give_a_rough_share_without_time_left(self):
+        stream = io.StringIO()
+        progress = Progress(stream, interactive=True)
+        with patch.object(progress, 'width', return_value=100):
+            progress.step('Working', 1, 4, 0.5, 'scoring series 5/10')
+        self.assertEqual(progress.share, 0.375)
+        self.assertIn('37.5%  step 2/4: scoring series 5/10, 0s elapsed', progress.line)
+        self.assertNotIn('left', progress.line)
+
+    def test_disabled_progress_draws_nothing_but_messages_still_print(self):
+        stream, printed = io.StringIO(), io.StringIO()
+        progress = Progress(stream, interactive=True, enabled=False)
+        progress.bar('Working', 0.5, '1/2 files')
+        progress.message('ordinary output', stream=printed)
+        progress.close('done')
+        self.assertEqual(stream.getvalue(), '')
+        self.assertEqual(printed.getvalue(), 'ordinary output\n')
 
     def test_terminal_redraws_in_place_and_messages_keep_the_line(self):
         stream, printed = io.StringIO(), io.StringIO()
@@ -45,6 +67,20 @@ class ProgressBarTest(unittest.TestCase):
             progress.show('after the interval')
         progress.close('done')
         self.assertEqual(stream.getvalue(), 'after the interval\ndone\n')
+
+    def test_reports_to_the_file_the_driver_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / 'stage.progress.json'
+            with patch.dict(os.environ, {progress_bar.PROGRESS_FILE_ENV: str(report)}):
+                progress = Progress(io.StringIO(), interactive=False)
+            progress.bar('Working', 0.25, '1/4 files')
+            self.assertEqual(json.loads(report.read_text())['share'], 0.25)
+            with progress.phase('Building'):
+                pass
+            self.assertIsNone(json.loads(report.read_text())['share'])  # a phase has no known share
+            progress.close('Finished')
+            self.assertEqual(json.loads(report.read_text())['text'], 'Finished')
+        self.assertFalse(Progress(io.StringIO(), interactive=False).report_path)
 
     def test_phase_counts_elapsed_time_while_a_step_runs(self):
         stream = io.StringIO()

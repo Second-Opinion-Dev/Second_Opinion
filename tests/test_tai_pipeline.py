@@ -3,12 +3,16 @@ import gzip
 import io
 from pathlib import Path
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 
 import pandas as pd
 
 from data_prep.tai_pipeline import run
+
+VERIFY = Path(__file__).resolve().parents[1] / 'src' / 'data_prep' / 'tai_verify.py'
 
 
 class PipelineTest(unittest.TestCase):
@@ -55,6 +59,11 @@ class PipelineTest(unittest.TestCase):
             self.assertNotIn('\r', shown.getvalue())
             self.assertTrue(shown.getvalue().strip().splitlines()[-1].startswith('Prepared 3 files, 3 rows in '))
             self.assertIn('MeasurementValues: 3 files processed', printed.getvalue())
+            # Verification reports its own progress on stderr; its result stays on stdout.
+            verified = subprocess.run([sys.executable, '-B', str(VERIFY), str(root / 'shown')], capture_output=True, text=True)
+            self.assertEqual(verified.returncode, 0, verified.stdout + verified.stderr)
+            self.assertIn('Verified 3 files and 3 retained rows', verified.stdout)
+            self.assertTrue(verified.stderr.strip().splitlines()[-1].startswith('Checked 3 files, 3 rows in '))
 
     def test_workers_give_the_same_output_as_one_process(self):
         with tempfile.TemporaryDirectory() as directory:
