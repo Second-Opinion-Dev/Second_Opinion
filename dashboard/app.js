@@ -25,14 +25,36 @@ en.allMetrics='All metrics';nl.allMetrics='Alle meetgroepen';en.selectPlantFirst
 function fillMetrics(){const el=$('metric');el.replaceChildren();const all=document.createElement('option');all.value='all';all.textContent=t().allMetrics;el.append(all);for(const m of catalog.metrics){let op=document.createElement('option');op.value=m.metric;op.textContent=metricName(m.metric);el.append(op)}el.value='all'}
 function plantLabel(p){return p.name?`${p.name} (${p.code})`:p.code}
 function setPlant(p){if(!p)return;const previous=$('plant').value;const option=document.createElement('option');option.value=p.code;option.textContent=plantLabel(p);$('plant').replaceChildren(option);$('plant').value=p.code;$('plantSearch').value=plantLabel(p);$('apply').disabled=false;}
-function filterPlants(){if(!catalog)return;const query=$('plantSearch').value.trim().toLocaleLowerCase();const matches=catalog.plants.filter(p=>plantLabel(p).toLocaleLowerCase().includes(query)||p.code.toLocaleLowerCase().includes(query));$('plantOptions').replaceChildren(...matches.map(p=>{const o=document.createElement('option');o.value=plantLabel(p);return o}));const exact=matches.find(p=>plantLabel(p).toLocaleLowerCase()===query||p.code.toLocaleLowerCase()===query);if(exact&&exact.code!==$('plant').value){setPlant(exact);loadPoints().then(applyFilters)}else if(!exact)$('apply').disabled=!matches.length}
-$('plantSearch').addEventListener('input',filterPlants);
-// A chosen plant fills the box, and the browser then lists only options matching that text, so the list looked empty.
-// While the box has focus, clear the text to list every plant again; put the choice back if no other is picked.
+// Plant picker: a list of our own under the search box. The browser's suggestion list could not be opened, closed or
+// toggled from code, and it showed only options matching the text, so it looked empty once a plant was chosen.
+let plantActive=-1;
 function chosenPlant(){return catalog&&catalog.plants.find(p=>p.code===$('plant').value)}
-$('plantSearch').addEventListener('focus',()=>{const chosen=chosenPlant();if(chosen&&$('plantSearch').value===plantLabel(chosen)){$('plantSearch').placeholder=plantLabel(chosen);$('plantSearch').value='';filterPlants()}});
-$('plantSearch').addEventListener('blur',()=>{const chosen=chosenPlant();if(chosen&&!$('plantSearch').value.trim()){$('plantSearch').value=plantLabel(chosen);filterPlants()}$('plantSearch').placeholder=t().searchPlant});
-$('plantSearch').addEventListener('change',()=>{if(!catalog)return;const q=$('plantSearch').value.trim().toLocaleLowerCase();const match=catalog.plants.find(p=>plantLabel(p).toLocaleLowerCase()===q||p.code.toLocaleLowerCase()===q);if(match&&match.code!==$('plant').value){setPlant(match);loadPoints().then(applyFilters)}});
+// The chosen plant's own name in the box means "show every plant", not "only that one".
+function plantMatches(){if(!catalog)return[];const query=$('plantSearch').value.trim().toLocaleLowerCase(),chosen=chosenPlant();if(!query||(chosen&&query===plantLabel(chosen).toLocaleLowerCase()))return catalog.plants;return catalog.plants.filter(p=>plantLabel(p).toLocaleLowerCase().includes(query)||p.code.toLocaleLowerCase().includes(query))}
+function renderPlantList(){const list=$('plantOptions'),matches=plantMatches();list.replaceChildren(...(matches.length?matches.map((p,i)=>{const li=document.createElement('li');li.id='plant-option-'+i;li.setAttribute('role','option');li.setAttribute('aria-selected',String(p.code===$('plant').value));li.textContent=plantLabel(p);if(p.code===$('plant').value)li.classList.add('chosen');if(i===plantActive)li.classList.add('active');li.onmousedown=e=>{e.preventDefault();choosePlant(p)};return li}):[Object.assign(document.createElement('li'),{className:'plant-empty',textContent:t().noPlant})]));if(plantActive>=0)$('plantSearch').setAttribute('aria-activedescendant','plant-option-'+plantActive);else $('plantSearch').removeAttribute('aria-activedescendant');return matches}
+function openPlantList(){if(!catalog)return;const list=$('plantOptions'),matches=renderPlantList();list.hidden=false;$('plantSearch').setAttribute('aria-expanded','true');const shown=list.children[plantActive>=0?plantActive:matches.findIndex(p=>p.code===$('plant').value)];if(shown)list.scrollTop=Math.max(0,shown.offsetTop-list.clientHeight/2)}
+function closePlantList(){$('plantOptions').hidden=true;$('plantSearch').setAttribute('aria-expanded','false');$('plantSearch').removeAttribute('aria-activedescendant');plantActive=-1}
+// Leaving the box after a choice means the next click opens the list afresh, with the name selected.
+function choosePlant(p){closePlantList();if(p.code!==$('plant').value){setPlant(p);loadPoints().then(applyFilters)}else $('plantSearch').value=plantLabel(p);$('plantSearch').blur()}
+// Typing only filters the list; a plant is chosen by clicking it, Enter or Apply, never mid-typing.
+function filterPlants(){if(!catalog)return;plantActive=-1;const matches=renderPlantList();$('apply').disabled=!matches.length}
+$('plantSearch').addEventListener('input',()=>{filterPlants();openPlantList()});
+// Pressing on the list itself (its scrollbar or an option) must not take focus from the box and close it.
+$('plantOptions').addEventListener('mousedown',e=>e.preventDefault());
+// Opening selects the text, so typing replaces the chosen plant's name with a search. After a click the browser
+// places the caret on mouse-up, which would undo a selection made earlier, so a click selects on that mouse-up.
+let selectOnMouseUp=false;
+$('plantSearch').addEventListener('focus',()=>{openPlantList();selectOnMouseUp=true;$('plantSearch').select()});
+$('plantSearch').addEventListener('mouseup',e=>{if(selectOnMouseUp){e.preventDefault();$('plantSearch').select()}selectOnMouseUp=false});
+// Clicking the box again while the list is open closes it.
+$('plantSearch').addEventListener('mousedown',()=>{if(document.activeElement!==$('plantSearch'))return;if($('plantOptions').hidden){openPlantList();selectOnMouseUp=true}else closePlantList()});
+// Leaving the box drops an unfinished search, so it always shows the plant whose readings are on screen.
+$('plantSearch').addEventListener('blur',()=>{closePlantList();const chosen=chosenPlant();if(chosen&&$('plantSearch').value!==plantLabel(chosen)){$('plantSearch').value=plantLabel(chosen);filterPlants()}});
+$('plantSearch').addEventListener('keydown',e=>{selectOnMouseUp=false;const matches=plantMatches();
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!matches.length)return;if($('plantOptions').hidden)openPlantList();plantActive=e.key==='ArrowDown'?Math.min(plantActive+1,matches.length-1):Math.max(plantActive-1,0);openPlantList()}
+ else if(e.key==='Enter'&&!$('plantOptions').hidden&&plantActive>=0&&matches[plantActive]){e.preventDefault();choosePlant(matches[plantActive])}
+ else if(e.key==='Enter')closePlantList();  // the filter form then picks the first match, as before
+ else if(e.key==='Escape'&&!$('plantOptions').hidden){e.preventDefault();closePlantList();const chosen=chosenPlant();if(chosen)$('plantSearch').value=plantLabel(chosen)}});
 function setPage(p){page=p;offset=0;document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('active',n.dataset.page===p));$('pageCrumb').textContent=t()[p];$('budgetBox').hidden=p!=='queue';$('viewAll').hidden=p==='queue';$('tableTitle').textContent=p==='queue'?t().queue:t().latest;$('tableSub').textContent=p==='queue'?($('metric').value==='all'?(language==='nl'?'Alle meetgroepen, gerangschikt op datum; modelscores zijn niet vergelijkbaar.':'All metrics, ordered by date; model scores are not comparable.'):(language==='nl'?'Rangschikking op modelscore binnen deze meetgroep.':'Ordered by model score within this measurement group.')):t().latestSub;if(catalog&&$('plant').value)loadReadings();if(p==='assistant'){if(current){$('casePanel').scrollIntoView({behavior:'smooth'})}else{error(t().noCase);$('error').scrollIntoView({behavior:'smooth',block:'center'})}}}
 document.querySelectorAll('.navitem').forEach(b=>b.onclick=()=>setPage(b.dataset.page));$('viewAll').onclick=()=>setPage('queue');$('goAssistant').onclick=()=>setPage('assistant');
 $('lang').onchange=()=>{language=$('lang').value==='nl'?'nl':'en';localStorage.setItem('so-lang',language);translate();if(catalog&&$('plant').value)loadReadings();else if(catalog)showChoosePlant()};

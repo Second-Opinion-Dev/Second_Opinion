@@ -11,7 +11,7 @@ function makePage(fetchImpl) {
       get options(){return this.children},
       get textContent(){return this._text+this.children.map(child=>child.textContent).join('')},
       set textContent(value){this._text=value;this.children=[]},
-      classList:{toggle() {}, contains(){return false}}, setAttribute(){}, listeners:{}, addEventListener(type,fn){(this.listeners[type]=this.listeners[type]||[]).push(fn)},
+      classList:{names:new Set(), toggle() {}, contains(name){return this.names.has(name)}, add(name){this.names.add(name)}}, setAttribute(){}, removeAttribute(){}, select(){}, blur(){}, listeners:{}, addEventListener(type,fn){(this.listeners[type]=this.listeners[type]||[]).push(fn)},
       replaceChildren(...items){this._text='';this.children=items}, append(child){this.children.push(child)}, scrollIntoView() {}
     };
   }
@@ -147,17 +147,51 @@ test('provider selection sends request-scoped key and clears it without storing 
   assert.equal(page.element('aiKey').value,'');assert.equal(page.element('consent').checked,false);
 });
 
-test('plant box lists every plant again when focused after a choice, and keeps the choice when left', () => {
+const plants="catalog={plants:[{code:'P1',name:'First plant'},{code:'P2',name:'Second plant'},{code:'P3',name:'Third'}],metrics:[]};setPlant(catalog.plants[0]);filterPlants()";
+const fire=(node,type,event={})=>node.listeners[type].forEach(fn=>fn({preventDefault(){},...event}));
+
+test('plant list opens with every plant even when the box shows the chosen one, and leaving keeps the choice', () => {
   const page=makePage(async()=>({ok:true,json:async()=>({points:[],rows:[],counts:{}})}));
-  vm.runInContext("catalog={plants:[{code:'P1',name:'First plant'},{code:'P2',name:'Second plant'}],metrics:[]};setPlant(catalog.plants[0]);filterPlants()",page.context);
-  const box=page.element('plantSearch'), fire=type=>box.listeners[type].forEach(fn=>fn());
-  assert.equal(page.element('plantOptions').children.length,1);  // only the chosen plant matches its own name
-  fire('focus');
-  assert.equal(box.value,'');
-  assert.equal(box.placeholder,'First plant (P1)');
-  assert.equal(page.element('plantOptions').children.length,2);
-  fire('blur');
+  vm.runInContext(plants,page.context);
+  const box=page.element('plantSearch'), list=page.element('plantOptions');
+  list.hidden=true;
+  fire(box,'focus');
+  assert.equal(list.hidden,false);
+  assert.deepEqual(list.children.map(li=>li.textContent),['First plant (P1)','Second plant (P2)','Third (P3)']);
+  assert.ok(list.children[0].classList.contains('chosen'));
+  box.value='sec'; fire(box,'input');
+  assert.deepEqual(list.children.map(li=>li.textContent),['Second plant (P2)']);
+  assert.equal(page.element('plant').value,'P1');  // typing filters but does not choose
+  fire(box,'blur');
+  assert.equal(list.hidden,true);
   assert.equal(box.value,'First plant (P1)');
-  assert.equal(box.placeholder,'Search name or code');
-  assert.equal(page.element('plant').value,'P1');
+});
+
+test('arrow keys and Enter choose a plant, and Escape closes the list without choosing', async () => {
+  const requests=[];
+  const page=makePage(async url=>{requests.push(url);return {ok:true,json:async()=>({points:[],rows:[],counts:{}})}});
+  vm.runInContext(plants,page.context);
+  const box=page.element('plantSearch'), list=page.element('plantOptions');
+  fire(box,'focus');
+  box.value='plant'; fire(box,'input');
+  fire(box,'keydown',{key:'Escape'});
+  assert.equal(list.hidden,true);
+  assert.equal(box.value,'First plant (P1)');
+  fire(box,'focus');
+  fire(box,'keydown',{key:'ArrowDown'}); fire(box,'keydown',{key:'ArrowDown'});
+  fire(box,'keydown',{key:'Enter'});
+  assert.equal(list.hidden,true);
+  assert.equal(page.element('plant').value,'P2');
+  assert.equal(box.value,'Second plant (P2)');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(requests.some(url=>url.startsWith('/api/points')));
+});
+
+test('clicking a plant in the list chooses it', () => {
+  const page=makePage(async()=>({ok:true,json:async()=>({points:[],rows:[],counts:{}})}));
+  vm.runInContext(plants,page.context);
+  fire(page.element('plantSearch'),'focus');
+  page.element('plantOptions').children[2].onmousedown({preventDefault(){}});
+  assert.equal(page.element('plant').value,'P3');
+  assert.equal(page.element('plantOptions').hidden,true);
 });
