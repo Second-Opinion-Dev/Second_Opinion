@@ -1,6 +1,17 @@
-# Runtime dependencies for the pipeline, dashboard and tests.
-# Unpinned: record `python -m pip freeze` alongside results for reproducibility.
-numpy
-pandas
-scikit-learn
-joblib
+# Runtime dependencies for the pipeline, dashboard and tests, pinned for reproducible results.
+# Python version: see .python-version. The dashboard server itself needs only the standard library.
+
+# Used directly
+joblib==1.6.0
+numpy==2.4.6
+pandas==3.1.0
+scikit-learn==1.9.1
+scipy==1.17.1
+
+# Installed by the packages above
+cloudpickle==3.1.2
+narwhals==2.28.0
+python-dateutil==3.0.0
+six==1.17.0
+threadpoolctl==3.7.0
+tzdata==2026.6
