@@ -63,7 +63,7 @@ See the [methodology](docs/methodology.md) for the full method, design choices a
 
 ### 1. Install
 
-Use Python 3.11 or newer. From the repository root:
+Use Python 3.11, the version in `.python-version` (tools such as `uv` and `pyenv` pick it up). From the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -71,7 +71,7 @@ source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.
 python -m pip install -r requirements.txt
 ```
 
-Requirements are unpinned. Record `python --version` and `python -m pip freeze` alongside any results you need to reproduce.
+`requirements.txt` pins every package, including the ones the direct dependencies install, so a fresh environment matches the one the results were made with. To upgrade, change the pins deliberately and rerun the tests.
 
 ### 2. Provide data
 
