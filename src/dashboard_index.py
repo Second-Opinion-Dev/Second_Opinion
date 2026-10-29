@@ -10,6 +10,10 @@ from contextlib import closing
 from pathlib import Path
 import sqlite3
 import sys
+import threading
+import traceback
+
+from progress_bar import Progress, bar_line, duration
 
 DASHBOARD = Path(__file__).resolve().parents[1] / 'dashboard'
 
@@ -41,6 +45,56 @@ def is_current(results: Path, index: Path, measurements: list[str]) -> bool:
     return True
 
 
+def progress_line(state: dict, elapsed: float, measurements: int, width: int = 100) -> str:
+    """One status line from the dashboard builder's counters, at most `width` characters."""
+    rows = state['processed'] + state['skipped']
+    done = f"{len(state['metrics'])}/{measurements} measurements"
+    # The builder keeps its last message after it finishes, so the phase is checked first.
+    if state['phase'] in ('ready', 'error'):
+        verb = 'finished' if state['phase'] == 'ready' else 'stopped'
+        return f'Index build {verb}: {rows:,} rows, {done}, {duration(elapsed)}'[:width]
+    if state['message'] == 'building_indexes':
+        return f'Building lookup indexes ... {duration(elapsed)} elapsed'[:width]
+    total = state['total']
+    if not total:
+        return f'Indexing {rows:,} rows, {done}, {duration(elapsed)} elapsed'[:width]
+    return bar_line('Indexing', rows / total, f'{rows:,}/{total:,} rows, {done}', elapsed, width)
+
+
+def watch(state: dict, lock, stream, interactive: bool, stop: threading.Event, measurements: int) -> None:
+    """Follow the builder's counters on one progress line until `stop` is set."""
+    progress = Progress(stream, interactive)
+    while True:
+        stopping = stop.wait(0.5)
+        with lock:
+            snapshot = {key: state[key] for key in ('phase', 'message', 'processed', 'skipped', 'total')}
+            snapshot['metrics'] = list(state['metrics'])
+        line = progress_line(snapshot, progress.elapsed(), measurements, progress.width())
+        if stopping:
+            progress.close(line)
+            return
+        progress.show(line)
+
+
+def build(server, results: Path, catalog: Path | None, index: Path) -> None:
+    """Run the dashboard's builder while a progress line on stderr follows its counters."""
+    stop = threading.Event()
+    watcher = threading.Thread(target=watch, args=(server.state, server.lock, sys.stderr, sys.stderr.isatty(), stop,
+                                                   len(server.METRICS)), daemon=True)
+    watcher.start()
+    try:
+        server.build_index(results, catalog, index)
+    finally:
+        stop.set()
+        watcher.join()
+
+
+def fail(message: str) -> None:
+    # Printed to stdout so the reason lands in the pipeline's stage log, not only on the terminal.
+    print(message, flush=True)
+    raise SystemExit(1)
+
+
 def main() -> None:
     server = dashboard_server()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -52,18 +106,22 @@ def main() -> None:
     args = parser.parse_args()
     if args.catalog is not None and not args.catalog.is_dir():
         parser.error(f'catalog folder not found: {args.catalog}')
-    server.build_index(args.results.resolve(), args.catalog.resolve() if args.catalog else None, args.index)
+    build(server, args.results.resolve(), args.catalog.resolve() if args.catalog else None, args.index)
     state = server.state
     for error in state['errors']:
         print(f'  {error}', flush=True)
     if state['phase'] != 'ready':
-        raise SystemExit(f"Index build failed: {state['message']}")
+        fail(f"Index build failed: {state['message']}")
     missing = [metric for metric in args.measurement if metric not in state['metrics']]
     if missing:
-        raise SystemExit(f"Not indexed: {', '.join(missing)}; see the messages above")
+        fail(f"Not indexed: {', '.join(missing)}; see the messages above")
     print(f"Indexed {', '.join(state['metrics'])} into {args.index}: {state['processed']} readings, "
           f"{state['skipped']} skipped for missing provenance", flush=True)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        traceback.print_exc(file=sys.stdout)
+        raise

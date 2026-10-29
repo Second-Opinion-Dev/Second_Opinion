@@ -3,13 +3,20 @@
 import argparse
 from collections import Counter, deque
 from concurrent.futures import ProcessPoolExecutor
+from contextlib import nullcontext
 import gzip
 import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import sys
 
 import pandas as pd
+
+SRC = Path(__file__).resolve().parents[1]
+if str(SRC) not in sys.path:  # run as a script from this folder
+    sys.path.insert(0, str(SRC))
+from progress_bar import Progress, duration  # noqa: E402
 
 TABLES = ("Installations", "MeasurementPoints", "MeasurementValues")
 OBSERVATIONS_TABLE = "CREATE TABLE observations(point TEXT, date TEXT, value TEXT, unit TEXT, digest TEXT)"
@@ -105,7 +112,7 @@ def merge_shard(database: sqlite3.Connection, shard: Path) -> None:
     shard.unlink()
 
 
-def run(raw: Path, output: Path, limit: int | None, chunksize: int, workers: int = 1) -> None:
+def run(raw: Path, output: Path, limit: int | None, chunksize: int, workers: int = 1, progress: bool = False) -> None:
     if workers < 1:
         raise ValueError("Workers must be at least 1")
     raw, output = raw.resolve(), output.resolve()
@@ -131,8 +138,14 @@ def run(raw: Path, output: Path, limit: int | None, chunksize: int, workers: int
     shards = output / "shards"
     if workers > 1:
         shards.mkdir()
+    bar = Progress() if progress else None
+    say = bar.message if bar else (lambda text: print(text, flush=True))
+    # Progress is measured in source bytes: the value files dominate the work, and files vary in size.
+    files = [path for table in TABLES for path in paths[table]]
+    total_bytes, done_bytes, done_rows = sum(path.stat().st_size for path in files) or 1, 0, 0
 
     def clean(table_names: tuple[str, ...]) -> None:
+        nonlocal done_bytes, done_rows
         # Files are absorbed in sorted order whatever finishes first, so every list, count and
         # table row ends up exactly as in a single-process run.
         jobs = []
@@ -154,35 +167,44 @@ def run(raw: Path, output: Path, limit: int | None, chunksize: int, workers: int
             columns.extend(result['columns'])
             if result['shard'] is not None:
                 merge_shard(database, result['shard'])
-            print(f'{job[0]}: {len(inventory)} files processed', flush=True)
+            say(f'{job[0]}: {len(inventory)} files processed')
+            if bar:
+                done_bytes += result['inventory']['bytes']
+                done_rows += result['inventory']['rows']
+                bar.bar('Preparing', done_bytes / total_bytes,
+                        f'{len(inventory)}/{len(files)} files ({job[0]}), {done_rows:,} rows')
 
     # Value rows are flagged against the complete metadata, so those tables run first.
     clean(TABLES[:2])
     clean(TABLES[2:])
     if workers > 1:
         shards.rmdir()
-    pd.DataFrame(inventory).to_csv(output / 'inventory.csv', index=False)
-    pd.DataFrame(columns).to_csv(output / 'column_quality.csv', index=False)
-    metadata = pd.concat(point_metadata, ignore_index=True)
-    metadata['duplicate_point_id'] = metadata['MeasurementPointID'].map(points).gt(1)
-    metadata.to_csv(output / 'point_metadata.csv.gz', index=False, compression='gzip')
-    pd.DataFrame([{'point_id': k, 'metadata_rows': v} for k, v in points.items() if v > 1]).to_csv(output / 'duplicate_point_metadata.csv', index=False)
-    print('Building cross-file quality index; this can take time and disk space.', flush=True)
-    database.execute('CREATE INDEX observation_key ON observations(point,date)')
-    database.commit()
-    queries = {
-        'same_date_groups.csv': "SELECT point,date,COUNT(*) AS rows,COUNT(DISTINCT digest) AS distinct_records,COUNT(*)-COUNT(DISTINCT digest) AS exact_duplicates FROM observations GROUP BY point,date HAVING COUNT(*)>1",
-        'point_coverage.csv': "SELECT point,COUNT(*) AS rows,MIN(date) AS first_date,MAX(date) AS last_date,COUNT(DISTINCT date) AS distinct_dates,COUNT(DISTINCT unit) AS distinct_units,COUNT(DISTINCT value) AS distinct_values FROM observations GROUP BY point",
-    }
-    for name, query in queries.items():
-        import csv
-        cursor = database.execute(query)
-        with (output / name).open('w', newline='', encoding='utf-8') as stream:
-            writer = csv.writer(stream)
-            writer.writerow([d[0] for d in cursor.description])
-            while batch := cursor.fetchmany(10000):
-                writer.writerows(batch)
+    with bar.phase('Writing point metadata and file reports') if bar else nullcontext():
+        pd.DataFrame(inventory).to_csv(output / 'inventory.csv', index=False)
+        pd.DataFrame(columns).to_csv(output / 'column_quality.csv', index=False)
+        metadata = pd.concat(point_metadata, ignore_index=True)
+        metadata['duplicate_point_id'] = metadata['MeasurementPointID'].map(points).gt(1)
+        metadata.to_csv(output / 'point_metadata.csv.gz', index=False, compression='gzip')
+        pd.DataFrame([{'point_id': k, 'metadata_rows': v} for k, v in points.items() if v > 1]).to_csv(output / 'duplicate_point_metadata.csv', index=False)
+    say('Building cross-file quality index; this can take time and disk space.')
+    with bar.phase('Building cross-file quality index and duplicate reports') if bar else nullcontext():
+        database.execute('CREATE INDEX observation_key ON observations(point,date)')
+        database.commit()
+        queries = {
+            'same_date_groups.csv': "SELECT point,date,COUNT(*) AS rows,COUNT(DISTINCT digest) AS distinct_records,COUNT(*)-COUNT(DISTINCT digest) AS exact_duplicates FROM observations GROUP BY point,date HAVING COUNT(*)>1",
+            'point_coverage.csv': "SELECT point,COUNT(*) AS rows,MIN(date) AS first_date,MAX(date) AS last_date,COUNT(DISTINCT date) AS distinct_dates,COUNT(DISTINCT unit) AS distinct_units,COUNT(DISTINCT value) AS distinct_values FROM observations GROUP BY point",
+        }
+        for name, query in queries.items():
+            import csv
+            cursor = database.execute(query)
+            with (output / name).open('w', newline='', encoding='utf-8') as stream:
+                writer = csv.writer(stream)
+                writer.writerow([d[0] for d in cursor.description])
+                while batch := cursor.fetchmany(10000):
+                    writer.writerows(batch)
     database.close()
+    if bar:
+        bar.close(f'Prepared {len(files)} files, {done_rows:,} rows in {duration(bar.elapsed())}')
     summary = {'counts': dict(counts), 'file_limit_per_table': limit, 'pandas_version': pd.__version__, 'limitations': ['Date and unit meanings are unconfirmed.', 'Digest uses pandas 64-bit hashes: duplicate candidates need exact verification.', 'Cross-file matching uses literal point and date strings.', 'Unknown joins are flagged but not expanded; origin key mapping is unconfirmed.', 'No rows removed, imputed, converted or declared anomalous.', 'A file limit produces an incomplete sample only.']}
     (output / 'summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
     print(json.dumps(summary, indent=2), flush=True)
@@ -201,7 +223,7 @@ def main() -> None:
         parser.error('Chunk size and file limit must be positive')
     if args.workers < 1:
         parser.error('--workers must be at least 1')
-    run(args.raw, args.output, args.limit_files, args.chunksize, args.workers)
+    run(args.raw, args.output, args.limit_files, args.chunksize, args.workers, progress=True)
 
 
 if __name__ == '__main__':

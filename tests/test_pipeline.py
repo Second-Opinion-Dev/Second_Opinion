@@ -1,11 +1,13 @@
 """Checks of the pipeline driver's skip, adopt, rerun, parallel and failure handling with stub stages."""
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
-from pipeline import Stage, build_stages, execute, fingerprint
+from pipeline import Stage, build_stages, execute, fingerprint, run_stage
 
 # A stub stage: 'fail' exits with an error, 'sleepX' waits X seconds; it records its start and end times.
 STUB = '''import sys, time
@@ -124,6 +126,15 @@ class DriverTest(unittest.TestCase):
         self.assertEqual(stages[-1].needs, ['forest:oxygen', 'forest:nitrate'])
         self.assertTrue(stages[-1].script.is_file())
         self.assertFalse(stages[-1].done())  # no results under the test folder
+        self.assertEqual([stage.name for stage in stages if stage.progress], ['prepare', 'index'])
+
+    def test_only_a_progress_stage_sends_stderr_to_the_terminal(self):
+        for progress, expected in ((True, None), (False, subprocess.STDOUT)):
+            stage = Stage('s', self.script, [], None, lambda: True, progress=progress)
+            with patch('pipeline.subprocess.run', return_value=subprocess.CompletedProcess([], 0)) as run:
+                run_stage(stage, self.root / 'logs')
+            self.assertIs(run.call_args.kwargs['stderr'], expected)
+            self.assertEqual(run.call_args.kwargs['stdout'].name, str(self.root / 'logs' / 's.log'))
         smoke = build_stages(self.root, ['oxygen'], 5, False, 0.01, 3)
         self.assertNotIn('index', [stage.name for stage in smoke])
 

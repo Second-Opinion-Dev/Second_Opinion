@@ -66,6 +66,8 @@ class Stage:
     fresh_output: bool = True
     # Arguments that only change how fast the stage runs, so they stay out of the fingerprint.
     run_args: list[str] = field(default_factory=list)
+    # The stage draws a progress bar on stderr, so stderr goes to the terminal instead of the log.
+    progress: bool = False
 
 
 def read_json(path: Path) -> dict | None:
@@ -106,7 +108,7 @@ def build_stages(root: Path, groups: list[str], smoke: int | None, with_faults: 
     stages = [
         Stage('prepare', SCRIPTS['prepare'], ['--raw', str(raw), '--output', str(prepared)], prepared,
               lambda: prepared_done(prepared), code=[SCRIPTS['prepare']], adoptable=True,
-              run_args=['--workers', str(workers)]),
+              run_args=['--workers', str(workers)], progress=True),
         # Verification writes nothing; its recorded run is its completion marker.
         Stage('verify', SCRIPTS['verify'], [str(prepared)], None, lambda: True,
               needs=['prepare'], code=[SCRIPTS['verify']], fresh_output=False),
@@ -139,7 +141,7 @@ def build_stages(root: Path, groups: list[str], smoke: int | None, with_faults: 
         stages.append(Stage(
             'index', SCRIPTS['index'], ['--results', str(root), '--catalog', str(raw), '--measurement', *groups],
             None, lambda: index_done(root, groups), needs=[f'forest:{group}' for group in groups],
-            code=[SCRIPTS['index'], DASHBOARD_SERVER], adoptable=True, fresh_output=False))
+            code=[SCRIPTS['index'], DASHBOARD_SERVER], adoptable=True, fresh_output=False, progress=True))
     return stages
 
 
@@ -209,7 +211,7 @@ def run_stage(stage: Stage, logs: Path) -> float:
     start = time.monotonic()
     with log.open('w', encoding='utf-8') as stream:
         result = subprocess.run([sys.executable, '-B', str(stage.script), *stage.args, *stage.run_args],
-                                cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT)
+                                cwd=ROOT, stdout=stream, stderr=None if stage.progress else subprocess.STDOUT)
     if result.returncode != 0:
         raise SystemExit(f'{stage.name} failed (exit {result.returncode}); see {log}')
     if not stage.done():
