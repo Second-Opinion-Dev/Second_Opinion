@@ -86,6 +86,8 @@ data/tai/extracted/
 
 `data/` is git-ignored. Measurement data, prepared files, scores and fitted models are derived from operational data, so keep them local and never commit them.
 
+No access to the export? [Generate a fully simulated one](docs/simulation/README.md) with the same schema and known, injected anomalies: `python src/simulation/simulate_tai.py`, which writes straight into `data/tai/` so the rest of the pipeline and both dashboards work unchanged.
+
 ### 3. Run the pipeline
 
 ```bash
@@ -132,6 +134,7 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 | [Data preparation](docs/data_prep/README.md) | Input format, preparation outputs, verification and supplementary reports |
 | [History detector](docs/history_detector/README.md) | Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation |
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
+| [Simulated dataset](docs/simulation/README.md) | A generated stand-in for the export, with injected anomalies and an answer key |
 | [Dashboard](dashboard/README.md) | The operator prototype and the dry-weather exploration |
 | [Website](site/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
 
@@ -142,6 +145,7 @@ src/pipeline.py              Pipeline driver
 src/data_prep/               Preparation, verification and data reports
 src/history_detector/        History detector and artificial-fault evaluation
 src/isolation_forest/        Experimental Isolation Forest
+src/simulation/              Simulated Z-info export generator
 dashboard/                   Streamlit operator prototype
 tests/                       Synthetic-fixture tests
 docs/                        Methodology, component guides and README graphics
