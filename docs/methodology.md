@@ -4,7 +4,7 @@ Second Opinion is a history-based validation aid for wastewater measurements. Th
 
 ## Problem
 
-Plants report daily measurements that feed downstream analysis, reporting and decisions. Validation usually relies on predefined limits: a reading outside them triggers a warning, and a reading inside them passes, even when it is highly unusual for that specific measurement point. There are no confirmed anomaly labels, and every investigation costs an operator time.
+Wastewater plants report daily measurements, for example into TAI's Z-info platform, and these feed downstream analysis, reporting and decisions. Validation usually relies on predefined limits: a reading outside them triggers a warning, and a reading inside them passes, even when it is highly unusual for that specific measurement point. There are no confirmed anomaly labels, and every investigation costs an operator time.
 
 **Problem statement:** How can we identify suspicious measurements that limit-based checks may miss, explain why they deserve attention, and help operators prioritise their validation within the time available?
 

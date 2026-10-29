@@ -4,10 +4,9 @@ A local Streamlit prototype that shows the operator side of Second Opinion: a da
 
 ## Run
 
-Install the dashboard requirements, then start it from the repository root:
+After installing `requirements.txt`, start it from the repository root:
 
 ```bash
-python -m pip install -r dashboard/requirements.txt
 python -m streamlit run dashboard/app.py --server.address 127.0.0.1
 ```
 
@@ -23,7 +22,7 @@ Volume, oxygen and ammonium are wired to real pipeline output. Temperature, nitr
 
 ## Views
 
-- **Daily grid:** measurements grouped by process in a compact date-column table. "All metrics" shows volume, oxygen and ammonium together, with their values and units kept separate. Orange marks a stored forest flag; muted values are not assessed. Repeated source rows remain separate.
+- **Daily grid:** measurements grouped by process in a compact date-column table. "All metrics" shows the available groups together, with their values and units kept separate. Orange marks a stored forest flag; muted values are not assessed. Repeated source rows remain separate.
 - **Review queue:** each eligible forest-flagged reading is one case, sorted for one plant and metric by forest score, then date, then provenance. A budget splits the visible cases into selected and deferred. Raw scores are never ranked across metrics. Review checkboxes live only in the browser session.
 - **Case evidence:** the reading, its history and the stored historical median, with a chart of the surrounding days.
 - **Assistant:** deterministic text built from the selected reading, its score and the historical median. It does not call an LLM, infer causes or send data anywhere. The corner badge counts the selected plant's recorded flags in the seven days up to the chosen end date; it does not count live alerts.

@@ -1,4 +1,0 @@
-# Dashboard dependencies, on top of the core pipeline requirements.
--r ../requirements.txt
-streamlit
-plotly

@@ -2,7 +2,7 @@
 """Score selected measurements against their own prior daily history.
 
 This is a provisional, history-only baseline. It does not infer causes, diagnose
-faults, compare plants, or establish accuracy. Read docs/history_detector/HANDOFF.md.
+faults, compare plants, or establish accuracy. See docs/history_detector/README.md.
 """
 
 import argparse

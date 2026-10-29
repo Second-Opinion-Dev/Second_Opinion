@@ -6,6 +6,7 @@
   <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="scikit-learn Isolation Forest" src="https://img.shields.io/badge/AI%20layer-Isolation%20Forest-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="Streamlit dashboard" src="https://img.shields.io/badge/dashboard-Streamlit-9fd8ea?style=flat-square&labelColor=04090d">
+  <img alt="Built for TAI / Z-info" src="https://img.shields.io/badge/built%20for-TAI%20%2F%20Z--info-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="Status: research prototype" src="https://img.shields.io/badge/status-research%20prototype-f0a35e?style=flat-square&labelColor=04090d">
 </p>
 
@@ -21,6 +22,8 @@
 ---
 
 **Second Opinion** helps wastewater treatment operators decide which unusual measurements are worth checking first. It compares each daily reading with the recent history of **the same measurement point**, flags readings that deviate or look like a broken sensor, groups flagged days into cases, and ranks them **per plant**. An experimental Isolation Forest adds a second, independent ranking.
+
+It is built around measurement data from **TAI's Z-info platform**. The aim is to help TAI and the plant operators who use Z-info catch readings that existing limit-based validation lets through, and to help them spend review time where it matters most.
 
 Second Opinion supports the operator's judgement and does not replace it. A flag is a reason to look, not a diagnosis, a confirmed fault or proof that everything else is fine.
 
@@ -65,7 +68,6 @@ Use Python 3.11 or newer. From the repository root:
 python3 -m venv .venv
 source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m pip install -r dashboard/requirements.txt   # only for the dashboard
 ```
 
 Requirements are unpinned. Record `python --version` and `python -m pip freeze` alongside any results you need to reproduce.
@@ -128,7 +130,7 @@ All tests use small artificial fixtures, never real measurements.
 | [History detector](docs/history_detector/README.md) | Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation |
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
 | [Dashboard](dashboard/README.md) | The operator prototype and the dry-weather exploration |
-| [Presentation](slide_deck/) | Seven-slide overview (`index.html`, PDF export and speaker notes) |
+| [Presentation](slide_deck/) | Seven-slide deck (`index.html`, PDF and speaker notes) and a scrolling web version (`pitch.html`) |
 
 ## Repository layout
 
@@ -146,7 +148,7 @@ data/                        Local data and outputs (git-ignored)
 
 ## Status and limitations
 
-Second Opinion is a research prototype run on historical, day-level data. It is not a live alerting system. Measurement meanings, units, reporting periods and observation availability have to be confirmed with whoever supplies the data. The thresholds encode an assumed review workload, roughly 1% of readings, not a validated false-alarm rate. Next steps would be expert review of a documented sample of flagged and unflagged cases, persistent operator feedback, and a comparison against the validation limits that actually applied at the time.
+Second Opinion is a research prototype run on historical, day-level data. It is not a live alerting system. Measurement meanings, units, reporting periods and observation availability still need to be confirmed with TAI. The thresholds encode an assumed review workload, roughly 1% of readings, not a validated false-alarm rate. Next steps would be expert review of a documented sample of flagged and unflagged cases, persistent operator feedback, and a comparison against the validation limits that actually applied at the time.
 
 ## Team
 

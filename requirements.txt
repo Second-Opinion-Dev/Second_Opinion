@@ -1,6 +1,8 @@
-# Core dependencies imported by the pipeline and tests.
+# Runtime dependencies for the pipeline, dashboard and tests.
 # Unpinned: record `python -m pip freeze` alongside results for reproducibility.
 numpy
 pandas
 scikit-learn
 joblib
+plotly
+streamlit
