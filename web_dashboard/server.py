@@ -1,6 +1,6 @@
 """Local-only Second Opinion web server with a streaming SQLite results index."""
 from __future__ import annotations
-import csv, gzip, hashlib, json, math, os, sqlite3, sys, threading, time
+import csv, gzip, hashlib, json, math, os, socket, sqlite3, sys, threading, time
 from datetime import date as calendar_date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -15,7 +15,7 @@ DATA = ROOT / 'data' / 'tai'
 DB = DATA / 'second_opinion_web_index.sqlite'
 METRICS = ('influent_volume','oxygen','ammonium','nitrate','suspended_solids','temperature')
 FIELDS = ('InstallationCodeOrigin','MeasurementPointID','ProcessCode','SubProcessCodeOrigin','SubProcessDescription','Product','ProductBalance','InstallationCodeDestination','SubProcessDestination','Unit','parsed_date','parsed_value','source_file','source_row','ai_status','ai_score','ai_flag','history_median','history_mad','history_scale','history_days','anomaly_score','signed_deviation_log','day_change_log','prior_deviation_log_mean','relative_level_log','is_zero','repeat_days_log')
-state = {'phase':'idle','message':'','processed':0,'skipped':0,'total':None,'metrics':[], 'errors':[]}
+state = {'phase':'idle','message':'','processed':0,'skipped':0,'total':None,'metrics':[], 'errors':[], 'read_only':False, 'catalog_names':None}
 lock = threading.Lock()
 
 def number(s):
@@ -51,11 +51,52 @@ def manifest_total(root):
         except (OSError, ValueError, TypeError, json.JSONDecodeError): return None
     return total if seen else None
 
+def reuse_readonly_index(root, db_path, catalog_root=None):
+    """Reuse only completed entries matching the requested source files."""
+    connection = sqlite3.connect(Path(db_path).resolve().as_uri() + '?mode=ro', uri=True)
+    usable, unavailable = [], []
+    try:
+        for metric in METRICS:
+            forest=Path(root)/f'forest_{metric}'; history=Path(root)/f'history_{metric}'
+            paths=[forest/'run_info.json',history/'run_info.json',forest/'scored_records.csv.gz']
+            if not all(p.is_file() for p in paths):
+                unavailable.append(f'{metric}: unavailable'); continue
+            info=json.loads(paths[0].read_text(encoding='utf-8'))
+            history_info=json.loads(paths[1].read_text(encoding='utf-8'))
+            row=connection.execute('SELECT fingerprint,threshold,status FROM runs WHERE metric=?',(metric,)).fetchone()
+            if (not row or row[0] != fingerprint(paths) or row[2] != 'provisional_unvalidated'
+                or info.get('measurement') != metric or history_info.get('measurement') != metric
+                or info.get('status') != 'provisional_unvalidated'
+                or history_info.get('status') not in ('provisional_unvalidated','smoke_run_partial')
+                or number(info.get('threshold')) != row[1]):
+                unavailable.append(f'{metric}: index is missing or out of date'); continue
+            usable.append(metric)
+    finally: connection.close()
+    if not usable: raise RuntimeError('The existing index is read-only and cannot be reused for these result files. Use a writable index location.')
+    names={}
+    if catalog_root:
+        for path in sorted((Path(catalog_root)/'Installations').glob('*.csv.gz')):
+            with gzip.open(path,'rt',encoding='utf-8',errors='replace',newline='') as f:
+                for row in csv.DictReader(f):
+                    code=(row.get('Installation') or '').strip()
+                    if code: names[code]=(row.get('Installation Description') or '').strip()
+        if not names: unavailable.append('catalog: No installation records found')
+    with lock: state.update(phase='ready',read_only=True,catalog_names=names,metrics=usable,errors=unavailable,message='')
+
 def build_index(root, catalog_root=None, db_path=DB):
     """Stream each compressed file; incomplete or mismatched metrics are not shown."""
     root = Path(root); Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    db = init_db(db_path)
-    with lock: state.update(phase='indexing',processed=0,skipped=0,total=manifest_total(root),metrics=[],errors=[],message='')
+    with lock: state.update(phase='indexing',processed=0,skipped=0,total=manifest_total(root),metrics=[],errors=[],message='',read_only=False,catalog_names=None)
+    try:
+        db = init_db(db_path)
+    except sqlite3.OperationalError as exc:
+        if 'readonly' in str(exc).lower():
+            try: reuse_readonly_index(root,db_path,catalog_root)
+            except (OSError,ValueError,RuntimeError,sqlite3.Error) as fallback:
+                with lock: state.update(phase='error',message=str(fallback))
+            return
+        with lock: state.update(phase='error',message=str(exc))
+        return
     dropped_indexes = False
     try:
         db.execute('DELETE FROM plants'); db.commit()
@@ -137,8 +178,15 @@ def build_index(root, catalog_root=None, db_path=DB):
             db.commit()
         with lock: state['phase'] = 'ready'
     except Exception as exc:
-        with lock: state.update(phase='error',message=str(exc))
-    finally: db.close()
+        if isinstance(exc, sqlite3.OperationalError) and 'readonly' in str(exc).lower():
+            db.close(); db = None
+            try: reuse_readonly_index(root,db_path,catalog_root)
+            except (OSError,ValueError,RuntimeError,sqlite3.Error) as fallback:
+                with lock: state.update(phase='error',message=str(fallback))
+        else:
+            with lock: state.update(phase='error',message=str(exc))
+    finally:
+        if db is not None: db.close()
 
 def database():
     db = sqlite3.connect(DB,timeout=10); db.row_factory = sqlite3.Row; return db
@@ -152,22 +200,28 @@ class Handler(BaseHTTPRequestHandler):
         body=json.dumps(obj,ensure_ascii=False,allow_nan=False).encode('utf-8'); self.send_response(code); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('X-Content-Type-Options','nosniff'); self.end_headers(); self.wfile.write(body)
     def do_GET(self):
         u=urlparse(self.path); q=parse_qs(u.query)
+        if u.path=='/favicon.ico':
+            body=b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="19" fill="#d9efe2"/><text x="32" y="46" text-anchor="middle" font-size="44" fill="#266f5c">&#10035;</text></svg>'
+            self.send_response(200); self.send_header('Content-Type','image/svg+xml'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body); return
         if u.path in ('/','/app.js','/style.css'):
             path=WEB/('index.html' if u.path=='/' else u.path[1:]); body=path.read_bytes()
-            self.send_response(200); self.send_header('Content-Type',{'html':'text/html','js':'text/javascript','css':'text/css'}[path.suffix[1:]]+'; charset=utf-8'); self.end_headers(); self.wfile.write(body); return
+            self.send_response(200); self.send_header('Content-Type',{'html':'text/html','js':'text/javascript','css':'text/css'}[path.suffix[1:]]+'; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.end_headers(); self.wfile.write(body); return
         if u.path=='/api/status':
             with lock: self.send_json(dict(state)); return
         if not DB.exists() or state['phase'] != 'ready': self.send_json({'error':'Results not connected'},503); return
         try:
             db=database()
             if u.path=='/api/catalog':
-                plants=[dict(r) for r in db.execute('SELECT plant AS code, COALESCE(MAX(name),\'\') AS name FROM (SELECT plant, NULL AS name FROM readings UNION ALL SELECT code AS plant, name FROM plants) GROUP BY plant ORDER BY plant')]
-                metrics=[dict(r) for r in db.execute('SELECT metric,threshold,status FROM runs')]
-                bounds=dict(db.execute('SELECT MIN(date) AS start, MAX(date) AS end FROM readings').fetchone())
+                allowed=tuple(state['metrics']); placeholders=','.join('?' for _ in allowed)
+                plant_codes={r[0] for r in db.execute(f'SELECT DISTINCT plant FROM readings WHERE metric IN ({placeholders})',allowed)}
+                names=state['catalog_names'] if state['read_only'] else {r['code']:r['name'] for r in db.execute('SELECT code,name FROM plants')}
+                names=names or {}; plants=[{'code':code,'name':names.get(code,'')} for code in sorted(plant_codes | set(names))]
+                metrics=[dict(r) for r in db.execute(f'SELECT metric,threshold,status FROM runs WHERE metric IN ({placeholders})',allowed)]
+                bounds=dict(db.execute(f'SELECT MIN(date) AS start, MAX(date) AS end FROM readings WHERE metric IN ({placeholders})',allowed).fetchone())
                 self.send_json({'plants':plants,'metrics':metrics,'bounds':bounds}); db.close(); return
             if u.path=='/api/readings':
                 plant=q.get('plant',[''])[0]; metric=q.get('metric',[''])[0]; start=q.get('start',['0000-01-01'])[0]; end=q.get('end',['9999-12-31'])[0]; point=q.get('point',[''])[0]
-                if metric not in METRICS or not plant: self.send_json({'error':'Select plant and metric'},400); return
+                if metric not in state['metrics'] or not plant: self.send_json({'error':'Select plant and available metric'},400); return
                 flags_only=q.get('flags',['0'])[0]=='1'
                 where=' WHERE plant=? AND metric=? AND date BETWEEN ? AND ?'+(' AND point=?' if point else '')
                 params=(plant,metric,start,end)+( (point,) if point else () )
@@ -179,12 +233,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'rows':[as_record(r) for r in rows],'counts':counts,'limit':500,'offset':offset}); db.close(); return
             if u.path=='/api/points':
                 metric=q.get('metric',[''])[0]; plant=q.get('plant',[''])[0]
-                if metric not in METRICS: self.send_json({'error':'Select a metric'},400); return
+                if metric not in state['metrics']: self.send_json({'error':'Select an available metric'},400); return
                 points=[r[0] for r in db.execute('SELECT DISTINCT point FROM readings WHERE plant=? AND metric=? ORDER BY point',(plant,metric))]
                 self.send_json({'points':points}); db.close(); return
             if u.path=='/api/case':
                 row=db.execute('SELECT * FROM readings WHERE id=? AND flag=1',(q.get('id',[''])[0],)).fetchone()
-                if not row: self.send_json({'error':'Case not found'},404); return
+                if not row or row['metric'] not in state['metrics']: self.send_json({'error':'Case not found'},404); return
                 case=as_record(row); details=case['details']; start=(__import__('datetime').date.fromisoformat(case['date'])-__import__('datetime').timedelta(days=28)).isoformat()
                 candidates=db.execute('SELECT * FROM readings WHERE plant=? AND metric=? AND point=? AND unit=? AND date BETWEEN ? AND ? ORDER BY date',(case['plant'],case['metric'],case['point'],case['unit'],start,case['date'])).fetchall()
                 context=('ProcessCode','SubProcessCodeOrigin','Product','ProductBalance','InstallationCodeDestination','SubProcessDestination')
@@ -215,7 +269,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path=='/api/assistant':
                 if body.get('consent') is not True: self.send_json({'error':'Permission required'},403); return
                 db=database(); row=db.execute('SELECT * FROM readings WHERE id=? AND flag=1',(str(body.get('id','')),)).fetchone()
-                if not row: self.send_json({'error':'Case not found'},404); return
+                if not row or row['metric'] not in state['metrics']: self.send_json({'error':'Case not found'},404); return
                 case=as_record(row); threshold=db.execute('SELECT threshold FROM runs WHERE metric=?',(case['metric'],)).fetchone()[0]; db.close()
                 evidence={'plant':case['plant'],'point':case['point'],'date':case['date'],'metric':case['metric'],'value':case['value'],'unit':case['unit'],'model_score':case['score'],'model_threshold':threshold,'details':{k:v for k,v in case['details'].items() if k not in ('source_file','source_row')}}
                 reply=explain_with_claude(evidence,str(body.get('question',''))[:2000],str(body.get('language','English')),consent=True)
@@ -224,6 +278,21 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError,PermissionError,RuntimeError,sqlite3.Error,json.JSONDecodeError) as exc: self.send_json({'error':str(exc)},400)
 
 PORT = int(os.environ.get('SECOND_OPINION_PORT','8518'))
+
+class LocalServer(ThreadingHTTPServer):
+    # On Windows SO_REUSEADDR can allow two servers on the same port, making
+    # requests unpredictably reach an older process with different settings.
+    allow_reuse_address = False
+    def server_bind(self):
+        if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
 if __name__ == '__main__':
+    try:
+        server = LocalServer(('127.0.0.1',PORT),Handler)
+    except OSError:
+        print(f'Could not start: port {PORT} is already in use. Stop the other dashboard server first.', file=sys.stderr, flush=True)
+        raise SystemExit(1)
     print(f'Second Opinion: http://127.0.0.1:{PORT}', flush=True)
-    ThreadingHTTPServer(('127.0.0.1',PORT),Handler).serve_forever()
+    server.serve_forever()

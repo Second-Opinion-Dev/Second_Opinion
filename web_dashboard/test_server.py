@@ -41,8 +41,23 @@ class IndexTest(unittest.TestCase):
         self.assertEqual(server.state['processed']+server.state['skipped'],2)
         server.build_index(self.root,db_path=self.db)
         self.assertEqual(server.state['processed'],2)
+    def test_readonly_index_reuses_only_matching_source(self):
+        server.build_index(self.root,db_path=self.db)
+        with patch.object(server,'init_db',side_effect=sqlite3.OperationalError('attempt to write a readonly database')):
+            server.build_index(self.root,db_path=self.db)
+            self.assertEqual(server.state['phase'],'ready')
+            self.assertTrue(server.state['read_only'])
+            self.assertEqual(server.state['metrics'],['oxygen'])
+            self.rows[0]['parsed_value']='7'; self.write()
+            server.build_index(self.root,db_path=self.db)
+            self.assertEqual(server.state['phase'],'error')
     def test_claude_requires_consent(self):
         with self.assertRaises(PermissionError): server.explain_with_claude({},'', 'English', consent=False)
+    def test_dashboard_port_is_exclusive(self):
+        first=server.LocalServer(('127.0.0.1',0),server.Handler)
+        try:
+            with self.assertRaises(OSError): server.LocalServer(('127.0.0.1',first.server_port),server.Handler)
+        finally: first.server_close()
     def test_local_api_case_and_readings(self):
         server.build_index(self.root,db_path=self.db)
         http=ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
@@ -52,6 +67,9 @@ class IndexTest(unittest.TestCase):
                 base=f'http://127.0.0.1:{http.server_port}'
                 with urlopen(base+'/api/catalog') as r: catalog=json.load(r)
                 self.assertEqual(catalog['plants'][0]['code'],'test-plant')
+                with urlopen(base+'/favicon.ico') as r: self.assertEqual(r.status,200)
+                with urlopen(base+'/api/points?'+urlencode({'plant':'test-plant','metric':'oxygen'})) as r: points=json.load(r)
+                self.assertEqual(points['points'],['test-point'])
                 with urlopen(base+'/api/readings?'+urlencode({'plant':'test-plant','metric':'oxygen','flags':'1'})) as r: readings=json.load(r)
                 self.assertEqual(readings['counts']['flagged'],1)
                 with urlopen(base+'/api/case?'+urlencode({'id':readings['rows'][0]['id']})) as r: case=json.load(r)
