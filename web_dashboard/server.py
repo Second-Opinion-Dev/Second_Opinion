@@ -14,6 +14,7 @@ WEB = Path(__file__).resolve().parent
 DATA = ROOT / 'data' / 'tai'
 DB = DATA / 'second_opinion_web_index.sqlite'
 METRICS = ('influent_volume','oxygen','ammonium','nitrate','suspended_solids','temperature')
+PAGE_SIZE = 50
 FIELDS = ('InstallationCodeOrigin','MeasurementPointID','ProcessCode','SubProcessCodeOrigin','SubProcessDescription','Product','ProductBalance','InstallationCodeDestination','SubProcessDestination','Unit','parsed_date','parsed_value','source_file','source_row','ai_status','ai_score','ai_flag','history_median','history_mad','history_scale','history_days','anomaly_score','signed_deviation_log','day_change_log','prior_deviation_log_mean','relative_level_log','is_zero','repeat_days_log')
 state = {'phase':'idle','message':'','processed':0,'skipped':0,'total':None,'metrics':[], 'errors':[], 'read_only':False, 'catalog_names':None}
 lock = threading.Lock()
@@ -225,12 +226,12 @@ class Handler(BaseHTTPRequestHandler):
                 flags_only=q.get('flags',['0'])[0]=='1'
                 where=' WHERE plant=? AND metric=? AND date BETWEEN ? AND ?'+(' AND point=?' if point else '')
                 params=(plant,metric,start,end)+( (point,) if point else () )
-                sql='SELECT * FROM readings'+where+(' AND flag=1 ORDER BY score DESC, date DESC, id' if flags_only else ' ORDER BY date DESC, point, id')+' LIMIT 500'
+                sql='SELECT * FROM readings'+where+(' AND flag=1 ORDER BY score DESC, date DESC, id' if flags_only else ' ORDER BY date DESC, point, id')+' LIMIT ?'
                 try: offset=max(0,min(int(q.get('offset',['0'])[0]),10000000))
                 except ValueError: offset=0
-                rows=db.execute(sql+' OFFSET ?',params+(offset,)).fetchall()
+                rows=db.execute(sql+' OFFSET ?',params+(PAGE_SIZE,offset)).fetchall()
                 counts=dict(db.execute('SELECT COUNT(*) AS total, SUM(flag=1) AS flagged, SUM(flag IS NOT NULL) AS assessed, SUM(flag IS NULL) AS unassessed FROM readings'+where,params).fetchone())
-                self.send_json({'rows':[as_record(r) for r in rows],'counts':counts,'limit':500,'offset':offset}); db.close(); return
+                self.send_json({'rows':[as_record(r) for r in rows],'counts':counts,'limit':PAGE_SIZE,'offset':offset}); db.close(); return
             if u.path=='/api/points':
                 metric=q.get('metric',[''])[0]; plant=q.get('plant',[''])[0]
                 if metric not in state['metrics']: self.send_json({'error':'Select an available metric'},400); return

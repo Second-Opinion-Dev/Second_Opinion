@@ -78,4 +78,26 @@ class IndexTest(unittest.TestCase):
         finally:
             http.shutdown(); http.server_close(); thread.join()
 
+    def test_readings_and_queue_paginate_without_losing_records(self):
+        self.rows=[dict(self.rows[0], source_row=str(i), parsed_value=str(i)) for i in range(103)]
+        self.write()
+        server.build_index(self.root,db_path=self.db)
+        http=ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
+        thread=threading.Thread(target=http.serve_forever,daemon=True); thread.start()
+        try:
+            with patch.object(server,'DB',self.db):
+                base=f'http://127.0.0.1:{http.server_port}/api/readings?'
+                for flags in ('0','1'):
+                    pages=[]
+                    for offset in (0,50,100):
+                        with urlopen(base+urlencode({'plant':'test-plant','metric':'oxygen','flags':flags,'offset':offset})) as response:
+                            page=json.load(response)
+                        self.assertEqual(page['limit'],50)
+                        self.assertEqual(page['counts']['total'],103)
+                        pages.append(page['rows'])
+                    self.assertEqual([len(page) for page in pages],[50,50,3])
+                    self.assertEqual(len({row['id'] for page in pages for row in page}),103)
+        finally:
+            http.shutdown(); http.server_close(); thread.join()
+
 if __name__ == '__main__': unittest.main()
