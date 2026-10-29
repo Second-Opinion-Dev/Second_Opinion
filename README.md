@@ -86,7 +86,7 @@ data/tai/extracted/
 
 `data/` is git-ignored. Measurement data, prepared files, scores and fitted models are derived from operational data, so keep them local and never commit them.
 
-No access to the export? [Generate a fully simulated one](docs/simulation/README.md) with the same schema and known, injected anomalies: `python src/simulation/simulate_tai.py`, which writes straight into `data/tai/` so the rest of the pipeline and the dashboard work unchanged.
+No access to the export? [Generate a fully simulated one](docs/simulation/README.md) with the same schema and known, injected anomalies: `python src/simulation/simulate_tai.py`, which writes straight into `data/tai/` so the rest of the pipeline and the dashboard work unchanged. Add `--workers N` to generate N plants at once (see [Running in parallel](#running-in-parallel)).
 
 ### 3. Run the pipeline
 
@@ -96,11 +96,37 @@ python src/pipeline.py --smoke 30                       # quick partial run, 30 
 python src/pipeline.py                                  # full run
 python src/pipeline.py --groups oxygen --force detect   # redo oxygen detection and downstream
 python src/pipeline.py --with-faults                    # add the artificial-fault evaluation
-python src/pipeline.py --jobs 3                         # run up to three independent stages at once
-python src/pipeline.py --workers 8                      # clean up to eight files at once in the prepare stage
+python src/pipeline.py --workers 8 --jobs 3             # run in parallel (see Running in parallel below)
 ```
 
-The driver fingerprints each stage's script, arguments and upstream stages in `data/tai/pipeline_state.json` and skips stages that are already complete and unchanged. It never deletes output: anything that must be redone is first renamed `<name>.old-<timestamp>`. Outputs and one log per stage go to `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`). Full preparation needs substantial time and disk space. Each detector holds its whole group in memory, so check free RAM before raising `--jobs`. A full run ends by building the dashboard's results index (`data/tai/second_opinion_web_index.sqlite`) with the dashboard's own code, so connecting the dashboard to `data/tai/pipeline` reuses it instead of indexing again. Smoke runs leave the shared index alone; the dashboard indexes a smoke folder when it connects. While it runs, the driver keeps one status line at the bottom of the terminal: with one stage running it shows that stage's own progress (files and rows for preparation and verification, numbered steps for the detectors and forests, rows for the dashboard index), and with several it shows the overall share and each running stage. Started and finished messages print above it, and every stage's own output goes to its log. Run on their own, the scripts (and the simulator) show their bar directly.
+The driver fingerprints each stage's script, arguments and upstream stages in `data/tai/pipeline_state.json` and skips stages that are already complete and unchanged. It never deletes output: anything that must be redone is first renamed `<name>.old-<timestamp>`. Outputs and one log per stage go to `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`). Full preparation needs substantial time and disk space. A full run ends by building the dashboard's results index (`data/tai/second_opinion_web_index.sqlite`) with the dashboard's own code, so connecting the dashboard to `data/tai/pipeline` reuses it instead of indexing again. Smoke runs leave the shared index alone; the dashboard indexes a smoke folder when it connects. While it runs, the driver keeps one status line at the bottom of the terminal: with one stage running it shows that stage's own progress (files and rows for preparation and verification, numbered steps for the detectors and forests, rows for the dashboard index), and with several it shows the overall share and each running stage. Started and finished messages print above it, and every stage's own output goes to its log. Run on their own, the scripts (and the simulator) show their bar directly.
+
+#### Running in parallel
+
+Everything runs one thing at a time by default. Three settings run work side by side to save time. None of them changes any output; they only use more of the computer.
+
+| Setting | What runs at the same time | Mainly uses |
+| --- | --- | --- |
+| `simulate_tai.py --workers N` | Up to N simulated plants are generated, each in its own process | CPU cores |
+| `pipeline.py --workers N` | The prepare stage cleans up to N raw files, each in its own process | CPU cores, plus temporary disk space |
+| `pipeline.py --jobs N` | Up to N pipeline stages that do not depend on each other | Memory |
+
+`--workers` speeds up the work inside one step. Prepare's last part, the cross-file quality index and duplicate reports, still runs in one process.
+
+`--jobs` decides how many stages can overlap, within the order they depend on each other:
+
+- Prepare and verify always run alone, because every later stage needs them.
+- After verify, the history check of each measurement group can start. Each group's Isolation Forest waits for its own history check, and the dashboard index waits for all the forests. With `--with-faults`, the artificial-fault comparisons only need verify.
+- So with the six groups, at most six stages can run at once, one per group (twelve with `--with-faults`); a higher `--jobs` has no further effect.
+
+Apart from prepare with `--workers`, each stage runs in a single process, and each history check holds its whole measurement group in memory. Memory is therefore what limits `--jobs`.
+
+Choosing values:
+
+- `--workers`: up to the number of physical CPU cores, leaving one or two free for the rest of the computer. For example, 8 on a 10-core machine.
+- `--jobs`: start with 2 or 3, watch memory while the history checks run, and raise it only if plenty is left free.
+
+The two settings never compete, because prepare runs before any other stage starts, so set both at once: `python src/pipeline.py --workers 8 --jobs 3`.
 
 ### 4. Open the dashboard
 
