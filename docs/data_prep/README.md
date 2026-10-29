@@ -23,6 +23,8 @@ python src/data_prep/tai_pipeline.py --raw data/tai/extracted --output data/tai/
 python src/data_prep/tai_verify.py data/tai/prepared_history
 ```
 
+`--workers N` cleans up to N files at once in separate processes (default 1). The output is identical to a single-process run, including file order and the SQLite rows; the Installations and MeasurementPoints files run first so every value file is flagged against the complete metadata. Each worker writes its rows to a temporary shard database that is merged and removed, so allow extra disk space for up to `2 * N` shards. The cross-file index and duplicate queries at the end still run in one process. The pipeline driver takes the same option as `python src/pipeline.py --workers N`; it is not part of the stage's recorded settings, so changing it does not trigger a rerun.
+
 `--limit-files N` creates a partial preparation for inspection. The detectors refuse partial output. A full export needs significant time and disk space for the SQLite index and compressed outputs. If a run fails, it leaves its partial output for inspection; use a fresh output path for the next attempt.
 
 ## Outputs
