@@ -14,8 +14,8 @@ The markdown stays the single source for the documentation: edit it in `docs/` a
 ## Build and preview
 
 ```bash
-python -m pip install -r site/requirements.txt
-python site/build.py
+python -m pip install -r docs/website/requirements.txt
+python docs/website/build.py
 python -m http.server 8000 --directory _site
 ```
 
@@ -25,4 +25,4 @@ The build writes to `_site/` (git-ignored), replacing it each time.
 
 `.github/workflows/pages.yml` builds and deploys the site on every push to `main` that touches the site or the guides, and can be run by hand from the **Actions** tab. Enable it once under **Settings → Pages → Build and deployment → Source: GitHub Actions**. The site is then served at https://sunilparameswaran.github.io/Second_Opinion/.
 
-Keep claims in line with the [methodology](../docs/methodology.md): no accuracy, false-alarm or time-saving claims without labelled or expert-reviewed evidence. The pipeline illustrations must stay synthetic and labelled as such.
+Keep claims in line with the [methodology](../methodology.md): no accuracy, false-alarm or time-saving claims without labelled or expert-reviewed evidence. The pipeline illustrations must stay synthetic and labelled as such.

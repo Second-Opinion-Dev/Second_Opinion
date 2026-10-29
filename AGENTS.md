@@ -6,7 +6,7 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
 
 - Start with `README.md`, then `docs/methodology.md` and the component guide for the area you are changing (`docs/data_prep/`, `docs/history_detector/`, `docs/isolation_forest/`, `dashboard/README.md`).
 - Code lives in `src/`, tests in `tests/` (dashboard tests in `dashboard/`), documentation in `docs/`. `data/` holds local data and outputs only and is git-ignored.
-- `site/` is the public website. Its documentation pages are generated from the markdown guides by `site/build.py`, so edit the markdown, not generated HTML. See `site/README.md`.
+- `docs/website/` is the source of the public website. Its documentation pages are generated from the markdown guides by `docs/website/build.py`, so edit the markdown, not generated HTML. See `docs/website/README.md`.
 
 ## Rules
 
