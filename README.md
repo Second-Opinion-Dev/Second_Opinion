@@ -97,6 +97,7 @@ python src/pipeline.py                                  # full run
 python src/pipeline.py --groups oxygen --force detect   # redo oxygen detection and downstream
 python src/pipeline.py --with-faults                    # add the artificial-fault evaluation
 python src/pipeline.py --jobs 3                         # run up to three independent stages at once
+python src/pipeline.py --workers 8                      # clean up to eight files at once in the prepare stage
 ```
 
 The driver fingerprints each stage's script, arguments and upstream stages in `data/tai/pipeline_state.json` and skips stages that are already complete and unchanged. It never deletes output: anything that must be redone is first renamed `<name>.old-<timestamp>`. Outputs and one log per stage go to `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`). Full preparation needs substantial time and disk space. Each detector holds its whole group in memory, so check free RAM before raising `--jobs`.

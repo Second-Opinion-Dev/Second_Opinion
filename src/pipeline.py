@@ -16,6 +16,7 @@ is moved aside first.
     python3 src/pipeline.py --groups influent_volume --with-faults
     python3 src/pipeline.py --force detect         # redo all detector stages and downstream
     python3 src/pipeline.py --jobs 3               # run up to three independent stages at once
+    python3 src/pipeline.py --workers 8            # clean up to eight files at once in the prepare stage
 
 Outputs and logs are derived from private measurement data under data/tai/; keep them out of Git.
 """
@@ -60,6 +61,8 @@ class Stage:
     adoptable: bool = False
     # The stage refuses a nonempty output directory, so a redo moves it aside first.
     fresh_output: bool = True
+    # Arguments that only change how fast the stage runs, so they stay out of the fingerprint.
+    run_args: list[str] = field(default_factory=list)
 
 
 def read_json(path: Path) -> dict | None:
@@ -87,14 +90,15 @@ def marked_done(folder: Path, files: list[str], statuses: tuple[str, ...]) -> bo
 
 
 def build_stages(root: Path, groups: list[str], smoke: int | None, with_faults: bool,
-                 target_flag_rate: float, fault_sample: int) -> list[Stage]:
+                 target_flag_rate: float, fault_sample: int, workers: int = 1) -> list[Stage]:
     """Describe every stage, its command-line arguments, output and completion check."""
     raw, prepared = DATA / 'extracted', DATA / 'prepared_history'
     partial = ['--max-points', str(smoke)] if smoke else []
     detector_status = ('smoke_run_partial',) if smoke else ('provisional_unvalidated',)
     stages = [
         Stage('prepare', SCRIPTS['prepare'], ['--raw', str(raw), '--output', str(prepared)], prepared,
-              lambda: prepared_done(prepared), code=[SCRIPTS['prepare']], adoptable=True),
+              lambda: prepared_done(prepared), code=[SCRIPTS['prepare']], adoptable=True,
+              run_args=['--workers', str(workers)]),
         # Verification writes nothing; its recorded run is its completion marker.
         Stage('verify', SCRIPTS['verify'], [str(prepared)], None, lambda: True,
               needs=['prepare'], code=[SCRIPTS['verify']], fresh_output=False),
@@ -189,7 +193,7 @@ def run_stage(stage: Stage, logs: Path) -> float:
             print(f'    previous output kept at {moved}', flush=True)
     start = time.monotonic()
     with log.open('w', encoding='utf-8') as stream:
-        result = subprocess.run([sys.executable, '-B', str(stage.script), *stage.args],
+        result = subprocess.run([sys.executable, '-B', str(stage.script), *stage.args, *stage.run_args],
                                 cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT)
     if result.returncode != 0:
         raise SystemExit(f'{stage.name} failed (exit {result.returncode}); see {log}')
@@ -277,13 +281,18 @@ def main() -> None:
     parser.add_argument('--plan', action='store_true', help='Show what would run or be skipped, then stop')
     parser.add_argument('--jobs', type=int, default=1, metavar='N',
                         help='Run up to N independent stages at once (each detector holds its group in memory)')
+    parser.add_argument('--workers', type=int, default=1, metavar='N',
+                        help='Clean up to N files at once inside the prepare stage; the output is identical to N=1')
     args = parser.parse_args()
     if args.smoke is not None and args.smoke < 1:
         parser.error('--smoke must be positive')
     if args.jobs < 1:
         parser.error('--jobs must be at least 1')
+    if args.workers < 1:
+        parser.error('--workers must be at least 1')
     root = DATA / (f'pipeline_smoke{args.smoke}' if args.smoke else 'pipeline')
-    stages = build_stages(root, args.groups, args.smoke, args.with_faults, args.target_flag_rate, args.fault_sample)
+    stages = build_stages(root, args.groups, args.smoke, args.with_faults, args.target_flag_rate, args.fault_sample,
+                          args.workers)
     known = {stage.name for stage in stages} | {stage.name.split(':')[0] for stage in stages}
     unknown = [name for name in args.force if name not in known]
     if unknown:
