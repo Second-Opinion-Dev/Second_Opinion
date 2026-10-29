@@ -100,7 +100,7 @@ python src/pipeline.py --jobs 3                         # run up to three indepe
 python src/pipeline.py --workers 8                      # clean up to eight files at once in the prepare stage
 ```
 
-The driver fingerprints each stage's script, arguments and upstream stages in `data/tai/pipeline_state.json` and skips stages that are already complete and unchanged. It never deletes output: anything that must be redone is first renamed `<name>.old-<timestamp>`. Outputs and one log per stage go to `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`). Full preparation needs substantial time and disk space. Each detector holds its whole group in memory, so check free RAM before raising `--jobs`.
+The driver fingerprints each stage's script, arguments and upstream stages in `data/tai/pipeline_state.json` and skips stages that are already complete and unchanged. It never deletes output: anything that must be redone is first renamed `<name>.old-<timestamp>`. Outputs and one log per stage go to `data/tai/pipeline/` (or `data/tai/pipeline_smoke<N>/`). Full preparation needs substantial time and disk space. Each detector holds its whole group in memory, so check free RAM before raising `--jobs`. A full run ends by building the dashboard's results index (`data/tai/second_opinion_web_index.sqlite`) with the dashboard's own code, so connecting the dashboard to `data/tai/pipeline` reuses it instead of indexing again. Smoke runs leave the shared index alone; the dashboard indexes a smoke folder when it connects.
 
 ### 4. Open the dashboard
 
@@ -146,6 +146,7 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 
 ```text
 src/pipeline.py              Pipeline driver
+src/dashboard_index.py       Prebuilds the dashboard index (last pipeline stage)
 src/data_prep/               Preparation, verification and data reports
 src/history_detector/        History detector and artificial-fault evaluation
 src/isolation_forest/        Experimental Isolation Forest

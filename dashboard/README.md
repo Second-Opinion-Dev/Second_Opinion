@@ -42,7 +42,7 @@ The same pattern applies to the other metrics: `influent_volume`, `oxygen`, `nit
 
 The server validates the measurement name, required fields, completion markers and provenance, and checks that eligible forest flags agree with the run's recorded threshold; a metric that fails is not shown. Missing, invalid and ineligible results are shown as **not assessed**, never as normal. The interface performs no model inference and never loads pickle or joblib files.
 
-The first connection builds a local SQLite index at `data/tai/second_opinion_web_index.sqlite`; large result sets can take time. Later connections reuse unchanged results. The index contains derived partner data: keep it private and out of Git. If it is read-only, the app can reuse matching completed entries, but new or changed results need a writable index.
+The dashboard reads a local SQLite index at `data/tai/second_opinion_web_index.sqlite`. A full `python src/pipeline.py` run builds it as its last stage, using this server's own `build_index`; you can also build it alone with `python src/dashboard_index.py --results data/tai/pipeline --catalog data/tai/extracted`. If the index is missing or out of date for the selected results, the first connection builds it, which can take time for large result sets. Later connections reuse unchanged results. The index contains derived partner data: keep it private and out of Git. If it is read-only, the app can reuse matching completed entries, but new or changed results need a writable index.
 
 ## Views
 
