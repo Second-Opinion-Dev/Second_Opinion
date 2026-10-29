@@ -5,6 +5,7 @@ data/
 artifacts/
 reports/
 outputs/
+_site/
 
 # Environments and caches
 .venv/

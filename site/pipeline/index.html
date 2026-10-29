@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the pipeline works · Second Opinion</title>
+<meta name="description" content="Interactive, synthetic walk-through of each Second Opinion stage: prepare, score, rules, cases, Isolation Forest and evaluation.">
+<meta name="theme-color" content="#04090d">
+<meta property="og:title" content="How the pipeline works · Second Opinion">
+<meta property="og:description" content="Interactive, synthetic walk-through of each Second Opinion pipeline stage.">
+<meta property="og:image" content="https://sunilparameswaran.github.io/Second_Opinion/assets/banner.png">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../">Second Opinion</a><nav><a class="on" href="./">Pipeline</a><a href="../docs/">Docs</a><a href="https://github.com/SunilParameswaran/Second_Opinion">GitHub ↗</a></nav></header>
+
+<main class="wrap">
+  <section class="intro">
+    <p class="lbl">How the pipeline works</p>
+    <h1 style="margin-top:22px">Follow a reading <em>through every stage.</em></h1>
+    <p>Each stage below runs in your browser on a small, seeded <b>synthetic</b> example, using simplified versions of the real code. The numbers show how each stage works. They are not results from any plant.</p>
+    <nav class="steps" aria-label="Stages">
+      <a href="#prepare">01 Prepare</a><a href="#score">02 Score</a><a href="#rules">03 Rules</a><a href="#cases">04 Cases</a><a href="#forest">05 Second view</a><a href="#evaluate">06 Evaluate</a>
+    </nav>
+  </section>
+
+  <section class="stage" id="prepare">
+    <div class="k"><span>01 // Prepare</span><span>Keep every row</span></div>
+    <h2>Add context, <em>never remove it.</em></h2>
+    <p>Preparation reads the Z-info export and keeps <b>every</b> row with its source file and row number. Problems are flagged for review, never deleted, filled in, averaged or converted. Click a row to see what happens to it.</p>
+    <a class="more" href="../docs/data-prep/">Data preparation guide →</a>
+    <div class="viz">
+      <div class="ctl"><div class="seg" id="prep-mode" role="group" aria-label="View"><button data-v="raw" aria-pressed="false">Raw export</button><button data-v="prepared" aria-pressed="true">After preparation</button></div></div>
+      <div class="tbl" id="prep-table"></div>
+      <p class="verdict ok" id="prep-why" aria-live="polite"></p>
+      <div class="counts" id="prep-counts"></div>
+      <p class="note">Illustration · synthetic rows, not real data · column set shortened</p>
+    </div>
+  </section>
+
+  <section class="stage" id="score">
+    <div class="k"><span>02 // Score</span><span>Each point keeps its own history</span></div>
+    <h2>Compare today with <em>its own last 28 days.</em></h2>
+    <p>For each day, the detector takes the previous 28 calendar days of the same series (never today, never another plant), with at least 14 valid days. The score is the distance from the prior median, in robust spreads. Drag across the chart or use the sliders.</p>
+    <a class="more" href="../docs/history-detector/">History detector guide →</a>
+    <div class="viz">
+      <div class="ctl">
+        <label for="score-day">Day <input type="range" id="score-day" min="0" max="119" value="72"><output id="score-day-out" for="score-day"></output></label>
+        <label for="score-thr">Threshold <input type="range" id="score-thr" min="2" max="8" step=".1" value="4"><output id="score-thr-out" for="score-thr"></output></label>
+        <span id="score-count"></span>
+      </div>
+      <div class="split">
+        <div>
+          <svg id="score-chart" viewBox="0 0 1000 300" role="img" aria-label="Synthetic daily series with the selected day's 28-day window, prior median and usual range"></svg>
+          <div class="legend"><span><i style="background:var(--mute)"></i>Daily reading</span><span><i style="background:var(--acc)"></i>Prior median</span><span><i style="background:rgba(159,216,234,.25);height:9px"></i>Median ± threshold × spread</span><span><i style="background:var(--acc);height:5px;width:5px;border-radius:50%"></i>Window used (clipped)</span><span><i class="dot" style="border-color:var(--flag)"></i>Flagged</span></div>
+        </div>
+        <div><dl class="stats" id="score-stats"></dl><p class="verdict" id="score-verdict" aria-live="polite"></p></div>
+      </div>
+      <p class="note">Illustration · synthetic series · one threshold for both directions here; the real thresholds are calibrated per series and per direction (minimum 2.0) on data through 2023 for an assumed 1% workload</p>
+    </div>
+  </section>
+
+  <section class="stage" id="rules">
+    <div class="k"><span>03 // Rules</span><span>Data-quality checks alongside the score</span></div>
+    <h2>Catch what a score <em>cannot see.</em></h2>
+    <p>Three simple rules run next to the score: <b>stuck</b> (the same value on 7 or more days after a history that varied), <b>dropout</b> (a zero after a window without zeros) and <b>negative</b>. Inject an artificial fault, as the project's fault evaluation does, and switch the rules off to compare.</p>
+    <a class="more" href="../docs/methodology/#4-data-quality-rules">Rules in the methodology →</a>
+    <div class="viz">
+      <div class="ctl">
+        <div class="seg" id="rules-fault" role="group" aria-label="Artificial fault"><button data-v="spike" aria-pressed="false">Spike</button><button data-v="dropout" aria-pressed="false">Dropout</button><button data-v="stuck" aria-pressed="true">Stuck</button><button data-v="drift" aria-pressed="false">Drift</button><button data-v="negative" aria-pressed="false">Negative</button></div>
+        <label><input type="checkbox" id="rules-on" checked> Rules on</label>
+      </div>
+      <svg id="rules-chart" viewBox="0 0 1000 300" role="img" aria-label="Synthetic series with an injected fault and the readings marked for review"></svg>
+      <div class="legend"><span><i style="background:var(--mute)"></i>Daily reading</span><span><i style="background:var(--acc)"></i>Prior median</span><span><i class="dot" style="border-color:var(--flag)"></i>Score flag</span><span><i class="dot" style="border-color:var(--rule)"></i>Rule hit</span></div>
+      <p class="verdict" id="rules-verdict" aria-live="polite"></p>
+      <p class="note">Illustration · synthetic series · recovering artificial faults is not real-world accuracy</p>
+    </div>
+  </section>
+
+  <section class="stage" id="cases">
+    <div class="k"><span>04 // Cases</span><span>Ranked within one plant</span></div>
+    <h2>Turn flagged days <em>into a review order.</em></h2>
+    <p>Flagged days of one series become one case when at most one unflagged day separates them. Cases are ranked within the plant: <b>rule hits first</b>, then more flagged days, then a higher peak score. This is a documented review order, not a severity. Click a day to cycle it through not flagged, score flag and rule hit.</p>
+    <a class="more" href="../docs/methodology/#5-cases-and-ranking">Cases in the methodology →</a>
+    <div class="viz">
+      <div class="ctl"><label for="cases-gap">Allowed gap (days) <input type="range" id="cases-gap" min="0" max="3" value="1"><output id="cases-gap-out" for="cases-gap"></output></label><span>Default 1</span></div>
+      <svg id="cases-grid" viewBox="0 0 1000 220" role="img" aria-label="Three series by 28 days; flagged days grouped into ranked cases"></svg>
+      <div class="legend"><span><i class="dot" style="background:var(--flag);border-color:var(--flag)"></i>Score flag</span><span><i class="dot" style="background:var(--rule);border-color:var(--rule)"></i>Rule hit</span><span><i style="border-top:1.5px dashed var(--flag);height:0"></i>Case</span></div>
+      <div class="tbl" id="cases-table" style="margin-top:18px"></div>
+      <p class="note">Illustration · three synthetic series at one plant · peak scores are invented</p>
+    </div>
+  </section>
+
+  <section class="stage" id="forest">
+    <div class="k"><span>05 // Second view</span><span>Experimental Isolation Forest</span></div>
+    <h2>Unusual combinations <em>isolate quickly.</em></h2>
+    <p>The forest splits the data at random. A rare combination of features ends up alone after only a few splits; a typical one takes many. Averaged over 100 trees, fewer splits give a higher <b>ai_score</b>. That means rarer, not faulty. Click any point to isolate it.</p>
+    <a class="more" href="../docs/isolation-forest/">Isolation Forest guide →</a>
+    <div class="viz">
+      <div class="ctl"><button class="btn" id="forest-again" type="button">New random tree</button><button class="btn" id="forest-centre" type="button">Pick a typical point</button></div>
+      <svg id="forest-chart" viewBox="0 0 1000 490" role="img" aria-label="Scatter of two synthetic features with random splits isolating the selected point"></svg>
+      <div class="legend"><span><i class="dot" style="background:#8fa1a8;border-color:#8fa1a8"></i>Lower ai_score</span><span><i class="dot" style="background:var(--flag);border-color:var(--flag)"></i>Higher ai_score</span><span><i style="background:var(--acc)"></i>Random split</span></div>
+      <p class="verdict ok" id="forest-out" aria-live="polite"></p>
+      <p class="note">Illustration · two synthetic features shown · the real model uses six history-based features and one forest per measurement group, and never uses identifiers or compares plants</p>
+    </div>
+  </section>
+
+  <section class="stage" id="evaluate">
+    <div class="k"><span>06 // Evaluate</span><span>Chronological, no labels</span></div>
+    <h2>Set the bar on one year, <em>test it on the next.</em></h2>
+    <p>The forest trains on data through 2023. The alert threshold is set on 2024 validation scores (the 99th percentile by default), then frozen and applied to the held-out 2025. Move the percentile to see how the threshold and workload shift.</p>
+    <a class="more" href="../docs/isolation-forest/#training-and-thresholds">Training and thresholds →</a>
+    <div class="viz">
+      <div class="ctl"><label for="eval-pct">Validation percentile <input type="range" id="eval-pct" min="95" max="99.9" step=".1" value="99"><output id="eval-pct-out" for="eval-pct"></output></label></div>
+      <svg id="eval-chart" viewBox="0 0 1000 345" role="img" aria-label="Histograms of synthetic validation and held-out scores with the frozen threshold"></svg>
+      <div class="counts" id="eval-counts"></div>
+      <p class="note">Illustration · synthetic score distributions · bar height is the square root of the count · a different held-out rate is expected and says nothing about accuracy</p>
+    </div>
+    <p style="margin-top:7vh">To compare the two methods fairly, each one picks its own top readings <b>per plant per day</b> from exactly the same eligible readings. The baseline takes rule hits first, then the history score; the forest takes the highest ai_score. Change the budget for one plant on one day.</p>
+    <div class="viz">
+      <div class="ctl"><label for="eval-budget">Budget per plant per day <input type="range" id="eval-budget" min="1" max="6" value="1"><output id="eval-budget-out" for="eval-budget"></output></label><span>Default 1</span></div>
+      <div class="tbl" id="eval-table"></div>
+      <div class="counts" id="eval-overlap"></div>
+      <p class="note">Illustration · six synthetic readings from one measurement group · overlap describes the methods; it does not show which is more useful</p>
+    </div>
+  </section>
+
+  <div class="foot"><span>Second Opinion · Built for TAI / Z-info</span><span><a href="../docs/methodology/">Read the methodology</a> · <a href="#">Back to top ↑</a></span></div>
+</main>
+<script src="../assets/pipeline.js"></script>
+</body>
+</html>

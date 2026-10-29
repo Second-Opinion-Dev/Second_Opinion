@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://sunilparameswaran.github.io/Second_Opinion/">Website</a> ·
   <a href="#why">Why</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -56,7 +57,7 @@ The data has no confirmed anomaly labels, so Second Opinion is built to be trans
 
 The pipeline covers six exploratory measurement groups: influent volume, and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature. Each is a narrow metadata filter, not every reading of that type. Plants are never compared with each other, because they differ in geography, process and timing, and each has its own operator.
 
-See the [methodology](docs/methodology.md) for the full method, design choices and limitations.
+See the [methodology](docs/methodology.md) for the full method, design choices and limitations, or [step through each stage interactively](https://sunilparameswaran.github.io/Second_Opinion/pipeline/) on synthetic data.
 
 ## Quick start
 
@@ -123,6 +124,8 @@ All tests use small artificial fixtures, never real measurements.
 
 ## Documentation
 
+The guides are also published on the [website](https://sunilparameswaran.github.io/Second_Opinion/docs/), rendered from the markdown below.
+
 | Guide | Covers |
 | --- | --- |
 | [Methodology](docs/methodology.md) | Problem framing, the full method, design decisions and limitations |
@@ -130,7 +133,7 @@ All tests use small artificial fixtures, never real measurements.
 | [History detector](docs/history_detector/README.md) | Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation |
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
 | [Dashboard](dashboard/README.md) | The operator prototype and the dry-weather exploration |
-| [Presentation](slide_deck/) | Seven-slide deck (`index.html`, PDF and speaker notes) and a scrolling web version (`pitch.html`) |
+| [Website](site/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
 
 ## Repository layout
 
@@ -142,7 +145,7 @@ src/isolation_forest/        Experimental Isolation Forest
 dashboard/                   Streamlit operator prototype
 tests/                       Synthetic-fixture tests
 docs/                        Methodology, component guides and README graphics
-slide_deck/                  Project presentation
+site/                        Project website (GitHub Pages)
 data/                        Local data and outputs (git-ignored)
 ```
 
