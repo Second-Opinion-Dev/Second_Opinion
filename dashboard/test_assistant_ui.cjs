@@ -11,8 +11,8 @@ function makePage(fetchImpl) {
       get options(){return this.children},
       get textContent(){return this._text+this.children.map(child=>child.textContent).join('')},
       set textContent(value){this._text=value;this.children=[]},
-      classList:{toggle() {}, contains(){return false}}, setAttribute(){}, addEventListener(){},
-      replaceChildren(){this._text='';this.children=[]}, append(child){this.children.push(child)}, scrollIntoView() {}
+      classList:{toggle() {}, contains(){return false}}, setAttribute(){}, listeners:{}, addEventListener(type,fn){(this.listeners[type]=this.listeners[type]||[]).push(fn)},
+      replaceChildren(...items){this._text='';this.children=items}, append(child){this.children.push(child)}, scrollIntoView() {}
     };
   }
   function element(id) {
@@ -145,4 +145,19 @@ test('provider selection sends request-scoped key and clears it without storing 
   page.element('aiProvider').value='xai';
   page.element('aiProvider').onchange();
   assert.equal(page.element('aiKey').value,'');assert.equal(page.element('consent').checked,false);
+});
+
+test('plant box lists every plant again when focused after a choice, and keeps the choice when left', () => {
+  const page=makePage(async()=>({ok:true,json:async()=>({points:[],rows:[],counts:{}})}));
+  vm.runInContext("catalog={plants:[{code:'P1',name:'First plant'},{code:'P2',name:'Second plant'}],metrics:[]};setPlant(catalog.plants[0]);filterPlants()",page.context);
+  const box=page.element('plantSearch'), fire=type=>box.listeners[type].forEach(fn=>fn());
+  assert.equal(page.element('plantOptions').children.length,1);  // only the chosen plant matches its own name
+  fire('focus');
+  assert.equal(box.value,'');
+  assert.equal(box.placeholder,'First plant (P1)');
+  assert.equal(page.element('plantOptions').children.length,2);
+  fire('blur');
+  assert.equal(box.value,'First plant (P1)');
+  assert.equal(box.placeholder,'Search name or code');
+  assert.equal(page.element('plant').value,'P1');
 });
