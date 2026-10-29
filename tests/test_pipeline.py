@@ -33,8 +33,12 @@ class DriverTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def folder(self, name):
+        # Stage names like 'detect:x' are not valid folder names on Windows.
+        return self.root / name.replace(':', '_')
+
     def stage(self, name, setting='a', needs=(), adoptable=False):
-        output = self.root / name
+        output = self.folder(name)
         return Stage(name, self.script, [str(output), setting], output,
                      lambda: (output / 'done.txt').is_file(), needs=list(needs),
                      code=[self.script], adoptable=adoptable)
@@ -43,7 +47,7 @@ class DriverTest(unittest.TestCase):
         return [action for _, action, _ in execute(stages, self.state, list(forced), dry_run=False, jobs=jobs)]
 
     def times(self, name):
-        start, end = (self.root / name / 'done.txt').read_text().split()
+        start, end = (self.folder(name) / 'done.txt').read_text().split()
         return float(start), float(end)
 
     def test_independent_stages_run_at_the_same_time(self):
