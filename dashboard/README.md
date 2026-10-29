@@ -96,3 +96,27 @@ Tests use fictional fixtures and check the implementation's behaviour, not its o
 The dashboard shows historical, provisional results, not live alerts or confirmed faults. A flag prompts investigation; the model inputs do not establish a cause or an operational limit. Scores from different models should not be compared. Retain and share TAI data only with the necessary permission.
 
 Possible next steps: grouped cases, a combined review budget across metrics, persistent review feedback, and validating wording and translations with operators.
+
+### Choose an AI provider
+
+The case explanation panel supports **Claude (Anthropic)**, **GPT (OpenAI)** and
+**Grok (xAI)**. Select a provider, enter an API model ID available to your account,
+and enter its API key in the password field. Confirm permission to share the
+selected case with that provider, then click Ask. This is manual explanation,
+not model training or anomaly detection. Provider API charges may apply.
+
+Entered keys travel only to the loopback server and selected provider. They are
+not written to disk, SQLite, logs or browser storage, and the input is cleared
+when sent. Changing providers clears the input and resets consent. As an
+alternative, configure ANTHROPIC_API_KEY / ANTHROPIC_MODEL, OPENAI_API_KEY /
+OPENAI_MODEL, or XAI_API_KEY / XAI_MODEL on the server. Environment keys are never
+returned to the browser. Leave the key field blank to use that provider's
+server configuration. Claude retains its existing server default; GPT and Grok
+require an explicit model ID or model environment variable.
+
+Only fixed official API endpoints are supported. OpenAI uses Responses with
+store=false; xAI uses Chat Completions; Anthropic uses Messages. Provider data
+policies still apply. Only selected evidence and the question are transmitted;
+source-file paths and source-row fields are excluded. Local evidence remains
+available if a provider fails. Restart the Python server after updating backend
+code. Tests mock all provider calls; no live credentials or partner data are used.

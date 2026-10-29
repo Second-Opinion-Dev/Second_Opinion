@@ -130,3 +130,19 @@ test('an obsolete selection error cannot overwrite a successful all-metrics requ
   assert.equal(page.element('error').hidden,true);
   assert.equal(page.element('total').textContent,'12');
 });
+
+test('provider selection sends request-scoped key and clears it without storing it', async () => {
+  let sent;
+  const page=makePage(async(url,options)=>{sent=JSON.parse(options.body);return {ok:true,json:async()=>({reply:'Check the records.'})}});
+  page.element('aiProvider').value='openai';
+  page.element('aiModel').value='test-model';
+  page.element('aiKey').value='test-key';
+  page.element('consent').checked=true;
+  await page.element('ask').onclick();
+  assert.equal(sent.provider,'openai');assert.equal(sent.model,'test-model');assert.equal(sent.api_key,'test-key');
+  assert.equal(page.element('aiKey').value,'');
+  page.element('aiKey').value='another-key';
+  page.element('aiProvider').value='xai';
+  page.element('aiProvider').onchange();
+  assert.equal(page.element('aiKey').value,'');assert.equal(page.element('consent').checked,false);
+});

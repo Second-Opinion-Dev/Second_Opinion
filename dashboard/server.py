@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from claude_assistant import explain_with_claude
+from ai_assistant import explain
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = Path(__file__).resolve().parent
@@ -276,7 +277,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not row or row['metric'] not in state['metrics']: self.send_json({'error':'Case not found'},404); return
                 case=as_record(row); threshold=db.execute('SELECT threshold FROM runs WHERE metric=?',(case['metric'],)).fetchone()[0]; db.close()
                 evidence={'plant':case['plant'],'point':case['point'],'date':case['date'],'metric':case['metric'],'value':case['value'],'unit':case['unit'],'model_score':case['score'],'model_threshold':threshold,'details':{k:v for k,v in case['details'].items() if k not in ('source_file','source_row')}}
-                reply=explain_with_claude(evidence,str(body.get('question',''))[:2000],str(body.get('language','English')),consent=True)
+                reply=explain(evidence,str(body.get('question',''))[:2000],str(body.get('language','English')),consent=True, provider=str(body.get('provider','anthropic')), model=str(body.get('model','')), api_key=str(body.get('api_key','')))
                 self.send_json({'reply':reply}); return
             self.send_json({'error':'Not found'},404)
         except (ValueError,PermissionError,RuntimeError,sqlite3.Error,json.JSONDecodeError) as exc: self.send_json({'error':str(exc)},400)
