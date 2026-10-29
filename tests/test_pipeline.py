@@ -118,6 +118,15 @@ class DriverTest(unittest.TestCase):
             self.assertTrue(stage.script.is_file())
         self.assertIn('--max-points', stages[2].args)
 
+    def test_full_run_ends_with_the_dashboard_index(self):
+        stages = build_stages(self.root, ['oxygen', 'nitrate'], None, False, 0.01, 3)
+        self.assertEqual(stages[-1].name, 'index')
+        self.assertEqual(stages[-1].needs, ['forest:oxygen', 'forest:nitrate'])
+        self.assertTrue(stages[-1].script.is_file())
+        self.assertFalse(stages[-1].done())  # no results under the test folder
+        smoke = build_stages(self.root, ['oxygen'], 5, False, 0.01, 3)
+        self.assertNotIn('index', [stage.name for stage in smoke])
+
     def test_prepare_workers_change_the_command_but_not_the_fingerprint(self):
         one = build_stages(self.root, ['oxygen'], None, False, 0.01, 3)[0]
         four = build_stages(self.root, ['oxygen'], None, False, 0.01, 3, workers=4)[0]

@@ -3,7 +3,8 @@
 
 Each stage is a separate process that runs an existing script through its own
 command line: prepare -> verify -> detect (per group) -> forest (per group) ->
-optional synthetic faults (per group). The raw export must already be in
+dashboard index (full runs only), plus optional synthetic faults (per group).
+The raw export must already be in
 data/tai/extracted/ (Installations/, MeasurementPoints/, MeasurementValues/).
 A stage is skipped when its output is complete and nothing it depends on has
 changed: its script, its arguments and every upstream stage are fingerprinted in
@@ -42,7 +43,9 @@ SCRIPTS = {
     'detect': SRC / 'history_detector' / 'history_detector.py',
     'forest': SRC / 'isolation_forest' / 'model.py',
     'faults': SRC / 'history_detector' / 'synthetic_faults.py',
+    'index': SRC / 'dashboard_index.py',
 }
+DASHBOARD_SERVER = ROOT / 'dashboard' / 'server.py'
 GROUPS = ('influent_volume', 'oxygen', 'ammonium', 'nitrate', 'suspended_solids', 'temperature')
 TABLES = ('Installations', 'MeasurementPoints', 'MeasurementValues')
 
@@ -81,6 +84,11 @@ def prepared_done(prepared: Path) -> bool:
     return (summary is not None and summary.get('file_limit_per_table') is None
             and (prepared / 'point_metadata.csv.gz').is_file()
             and (prepared / 'cleaned' / 'MeasurementValues').is_dir())
+
+
+def index_done(results: Path, groups: list[str]) -> bool:
+    from dashboard_index import dashboard_server, is_current
+    return is_current(results, dashboard_server().DB, groups)
 
 
 def marked_done(folder: Path, files: list[str], statuses: tuple[str, ...]) -> bool:
@@ -125,6 +133,13 @@ def build_stages(root: Path, groups: list[str], smoke: int | None, with_faults: 
                 faults, lambda f=faults: marked_done(f, ['summary.json', 'injections.csv'],
                                                      ('smoke_run_partial',) if smoke else ('synthetic_faults_only',)),
                 needs=['verify'], code=[SCRIPTS['faults'], SCRIPTS['detect']]))
+    if not smoke:
+        # The dashboard reads one shared index file, so only full runs refresh it;
+        # the dashboard still indexes any other results folder when it connects.
+        stages.append(Stage(
+            'index', SCRIPTS['index'], ['--results', str(root), '--catalog', str(raw), '--measurement', *groups],
+            None, lambda: index_done(root, groups), needs=[f'forest:{group}' for group in groups],
+            code=[SCRIPTS['index'], DASHBOARD_SERVER], adoptable=True, fresh_output=False))
     return stages
 
 
