@@ -1,3 +1,5 @@
+from contextlib import redirect_stderr
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -106,6 +108,18 @@ class SimulationTest(unittest.TestCase):
             for path in sorted((self.root / 'extracted' / 'MeasurementValues').glob('*.csv.gz')):
                 self.assertEqual(path.read_bytes(), (again / 'extracted' / 'MeasurementValues' / path.name).read_bytes())
             self.assertNotEqual(other_seed['rows_by_label'], self.manifest['rows_by_label'])
+
+    def test_progress_line_leaves_the_output_unchanged(self):
+        with tempfile.TemporaryDirectory() as other:
+            shown = io.StringIO()
+            with redirect_stderr(shown):
+                manifest = build(Path(other) / 'shown', progress=True)
+            self.assertEqual(manifest, self.manifest)
+            for path in sorted((self.root / 'extracted' / 'MeasurementValues').glob('*.csv.gz')):
+                self.assertEqual(path.read_bytes(), (Path(other) / 'shown' / 'extracted' / 'MeasurementValues' / path.name).read_bytes())
+            # Not a terminal here: no redraws, only the closing line of a run this short.
+            self.assertEqual(shown.getvalue().count('\n'), 1)
+            self.assertTrue(shown.getvalue().startswith(f"Simulated 4 plants, {manifest['rows']:,} rows in "))
 
     def test_refuses_a_non_empty_output_directory(self):
         with self.assertRaises(ValueError):

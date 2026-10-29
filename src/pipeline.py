@@ -28,11 +28,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import time
 from typing import Callable
+
+from progress_bar import PROGRESS_FILE_ENV, Progress, bar_line, duration
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'src'
@@ -199,22 +202,93 @@ def move_aside(output: Path) -> Path | None:
     return target
 
 
-def run_stage(stage: Stage, logs: Path) -> float:
+def progress_file(stage: Stage, logs: Path) -> Path:
+    return logs / f"{stage.name.replace(':', '_')}.progress.json"
+
+
+def run_stage(stage: Stage, logs: Path, say: Callable[[str], None] = print) -> float:
     logs.mkdir(parents=True, exist_ok=True)
     log = logs / f"{stage.name.replace(':', '_')}.log"
     if stage.output is not None and stage.fresh_output:
         moved = move_aside(stage.output)
         if moved:
-            print(f'    previous output kept at {moved}', flush=True)
+            say(f'    previous output kept at {moved}')
+    # A stage that reports progress writes it here. An old report is removed when possible; on Windows
+    # the driver may be reading it at this moment, and LiveStages ignores reports older than the stage anyway.
+    report = progress_file(stage, logs)
+    try:
+        report.unlink(missing_ok=True)
+    except PermissionError:
+        pass
     start = time.monotonic()
     with log.open('w', encoding='utf-8') as stream:
         result = subprocess.run([sys.executable, '-B', str(stage.script), *stage.args, *stage.run_args],
-                                cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT)
+                                cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT,
+                                env={**os.environ, PROGRESS_FILE_ENV: str(report)})
     if result.returncode != 0:
         raise SystemExit(f'{stage.name} failed (exit {result.returncode}); see {log}')
     if not stage.done():
         raise SystemExit(f'{stage.name} finished but its output is incomplete; see {log}')
     return time.monotonic() - start
+
+
+class LiveStages:
+    """What each stage of a run is doing, for the driver's status line.
+
+    A running stage reports its progress to its progress_file; one that reports nothing still
+    shows its time so far.
+    """
+
+    def __init__(self, decisions: list[tuple[Stage, str, str]], logs: Path):
+        # Start of each running stage: monotonic for its duration, wall clock to compare with report files.
+        self.logs, self.started, self.started_at = logs, {}, {}
+        self.entries = [{'name': stage.name, 'action': action, 'state': 'pending' if action == 'run' else 'done',
+                         'share': None, 'text': '', 'seconds': None} for stage, action, _ in decisions]
+        self.by_name = {entry['name']: entry for entry in self.entries}
+        self.stages = {stage.name: stage for stage, _, _ in decisions}
+
+    def set(self, name: str, state: str, seconds: float | None = None) -> None:
+        entry = self.by_name[name]
+        entry['state'] = state
+        if state == 'running':
+            self.started[name], self.started_at[name] = time.monotonic(), time.time()
+        if seconds is not None:
+            entry['seconds'] = round(seconds, 1)
+        if state == 'done':
+            entry['share'] = 1.0
+
+    def refresh(self) -> None:
+        """Bring running stages up to date: their time so far and what they last reported."""
+        for name, began in self.started.items():
+            entry = self.by_name[name]
+            if entry['state'] != 'running':
+                continue
+            entry['seconds'] = round(time.monotonic() - began, 1)
+            path = progress_file(self.stages[name], self.logs)
+            try:
+                # A report from before this stage started belongs to an earlier run.
+                current = path.stat().st_mtime >= self.started_at[name] - 1
+            except OSError:
+                current = False
+            report = read_json(path) if current else None
+            if report:
+                entry['share'], entry['text'] = report.get('share'), report.get('text', '')
+
+
+def overview(entries: list[dict], elapsed: float, width: int = 100) -> tuple[float, str]:
+    """The driver's one status line, from LiveStages entries: the overall share and its text."""
+    steps = [entry for entry in entries if entry['action'] == 'run']
+    done = sum(entry['state'] == 'done' for entry in steps)
+    running = [entry for entry in steps if entry['state'] == 'running']
+    share = (done + sum(entry['share'] or 0 for entry in running)) / len(steps) if steps else 1.0
+    if len(running) == 1 and running[0]['text']:
+        # One stage at a time: its own progress line says the most.
+        return share, f"[{done}/{len(steps)}] {running[0]['text']}"[:width]
+    items = ', '.join(f"{entry['name']} {entry['share']:.0%}" if entry['share'] is not None
+                      else f"{entry['name']} {duration(entry['seconds'] or 0)}" for entry in running)
+    amount = f'{done}/{len(steps)} steps' + (f' · {items}' if items else '')
+    # Stages differ widely in length, so no time left is estimated.
+    return share, bar_line('Pipeline', share, amount, elapsed, width, estimate=False)
 
 
 def execute(stages: list[Stage], state_path: Path, forced: list[str], dry_run: bool,
@@ -224,6 +298,7 @@ def execute(stages: list[Stage], state_path: Path, forced: list[str], dry_run: b
     Only this function writes the state file, so parallel stages cannot overwrite
     each other's records. If a stage fails, no new stage starts; running stages
     finish and are recorded, then the run stops with every failure listed.
+    While it runs, one status line follows the running stages; messages print above it.
     """
     if jobs < 1:
         raise ValueError('jobs must be at least 1')
@@ -252,35 +327,62 @@ def execute(stages: list[Stage], state_path: Path, forced: list[str], dry_run: b
     finished = {stage.name for stage, action, _ in decisions if action != 'run'}
     pending = [stage for stage, action, _ in decisions if action == 'run']
     failures = []
-    with ThreadPoolExecutor(max_workers=jobs) as pool:
-        running = {}
-        while pending or running:
-            # Start, in pipeline order, every waiting stage whose inputs are finished.
-            for stage in list(pending):
-                if failures or len(running) >= jobs:
+    status = LiveStages(decisions, logs)
+    line = Progress()
+
+    def show() -> None:
+        share, text = overview(status.entries, line.elapsed(), line.width())
+        line.show(text, share=share)
+
+    try:
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            running = {}
+            while pending or running:
+                # Start, in pipeline order, every waiting stage whose inputs are finished.
+                for stage in list(pending):
+                    if failures or len(running) >= jobs:
+                        break
+                    if all(name in finished for name in stage.needs):
+                        pending.remove(stage)
+                        line.message(f'  started  {stage.name}')
+                        running[pool.submit(run_stage, stage, logs, line.message)] = stage
+                        status.set(stage.name, 'running')
+                        show()
+                if not running:
                     break
-                if all(name in finished for name in stage.needs):
-                    pending.remove(stage)
-                    print(f'  started  {stage.name}', flush=True)
-                    running[pool.submit(run_stage, stage, logs)] = stage
-            if not running:
-                break
-            done, _ = wait(running, return_when=FIRST_COMPLETED)
-            for future in done:
-                stage = running.pop(future)
-                try:
-                    seconds = future.result()
-                except SystemExit as error:
-                    failures.append(str(error))
-                    print(f'  FAILED   {stage.name}: {error}', flush=True)
-                    continue
-                finished.add(stage.name)
-                record(stage)
-                report[stage.name] = ('run', f'{report[stage.name][1]}; {seconds:.0f}s')
-                print(f'  finished {stage.name} in {seconds:.0f}s', flush=True)
+                # Wake at least every second to refresh the status line.
+                done, _ = wait(running, timeout=1, return_when=FIRST_COMPLETED)
+                status.refresh()
+                show()
+                for future in done:
+                    stage = running.pop(future)
+                    try:
+                        seconds = future.result()
+                    except (SystemExit, Exception) as error:
+                        # Any error in starting or checking a stage fails that stage, not the whole driver,
+                        # so stages already running still finish and are recorded.
+                        if not isinstance(error, SystemExit):
+                            error = SystemExit(f'{stage.name} failed: {type(error).__name__}: {error}')
+                        failures.append(str(error))
+                        status.set(stage.name, 'failed')
+                        line.message(f'  FAILED   {stage.name}: {error}')
+                        continue
+                    finished.add(stage.name)
+                    record(stage)
+                    status.set(stage.name, 'done', seconds)
+                    report[stage.name] = ('run', f'{report[stage.name][1]}; {seconds:.0f}s')
+                    line.message(f'  finished {stage.name} in {seconds:.0f}s')
+                    show()
+    except BaseException:
+        line.close()
+        raise
+    steps = sum(action == 'run' for _, action, _ in decisions)
     if failures:
         skipped = f'; {len(pending)} stage(s) not started' if pending else ''
-        raise SystemExit('Pipeline stopped: ' + ' | '.join(failures) + skipped)
+        message = 'Pipeline stopped: ' + ' | '.join(failures) + skipped
+        line.close(f'Pipeline stopped after {duration(line.elapsed())}')
+        raise SystemExit(message)
+    line.close(f'Pipeline ran {steps} steps in {duration(line.elapsed())}')
     return [(stage.name, *report[stage.name]) for stage in stages]
 
 

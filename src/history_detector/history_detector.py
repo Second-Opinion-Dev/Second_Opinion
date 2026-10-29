@@ -11,9 +11,16 @@ from dataclasses import asdict, dataclass, replace
 import json
 import math
 from pathlib import Path
+import sys
+from typing import Callable
 
 import numpy as np
 import pandas as pd
+
+SRC = Path(__file__).resolve().parents[1]
+if str(SRC) not in sys.path:  # run as a script from this folder
+    sys.path.insert(0, str(SRC))
+from progress_bar import Progress, duration  # noqa: E402
 
 
 SERIES_COLUMNS = [
@@ -399,11 +406,12 @@ def rank_cases(cases: pd.DataFrame) -> pd.DataFrame:
     return ordered.reset_index(drop=True)
 
 
-def load_selected(prepared: Path, measurement: str, max_points: int | None = None) -> pd.DataFrame:
+def load_selected(prepared: Path, measurement: str, max_points: int | None = None,
+                  on_file: Callable[[int, int], None] | None = None) -> pd.DataFrame:
     """Load every prepared row for the selected points, with provenance checks.
 
     max_points keeps the first N selected point IDs and reads only their files;
-    it is for quick smoke runs, never for reported results.
+    it is for quick smoke runs, never for reported results. on_file(done, total) follows the files read.
     """
     if not (prepared / 'summary.json').is_file():
         raise ValueError('Preparation summary missing; pipeline may be incomplete')
@@ -431,7 +439,9 @@ def load_selected(prepared: Path, measurement: str, max_points: int | None = Non
     if not files:
         raise ValueError('No prepared measurement files found')
     frames = []
-    for path in files:
+    for number, path in enumerate(files):
+        if on_file:
+            on_file(number, len(files))
         frame = pd.read_csv(path, dtype=str, keep_default_na=False, usecols=VALUE_COLUMNS)
         frame = frame.loc[frame['MeasurementPointID'].isin(selected_ids)].copy()
         if frame.empty:
@@ -446,15 +456,22 @@ def load_selected(prepared: Path, measurement: str, max_points: int | None = Non
         for column in ('ProductDescription', 'QuantityDescription', 'ParameterDescription', 'InputType', 'StateDescription'):
             frame[column] = frame['MeasurementPointID'].map(selected_metadata[column])
         frames.append(frame)
+    if on_file:
+        on_file(len(files), len(files))
     if not frames:
         raise ValueError('Selected points have no observations; output is incomplete')
     return pd.concat(frames, ignore_index=True)
 
 
-def score_all(frame: pd.DataFrame, config: DetectorConfig) -> pd.DataFrame:
-    """Score every series separately; no data crosses between series."""
-    parts = [score_series(group, config) for _, group in
-             frame.groupby(SERIES_COLUMNS, dropna=False, sort=False)]
+def score_all(frame: pd.DataFrame, config: DetectorConfig,
+              on_series: Callable[[int, int], None] | None = None) -> pd.DataFrame:
+    """Score every series separately; no data crosses between series. on_series(done, total) follows them."""
+    groups = frame.groupby(SERIES_COLUMNS, dropna=False, sort=False)
+    parts = []
+    for number, (_, group) in enumerate(groups, 1):
+        parts.append(score_series(group, config))
+        if on_series:
+            on_series(number, groups.ngroups)
     return pd.concat(parts).sort_index()
 
 
@@ -476,7 +493,8 @@ def config_for(config: DetectorConfig, measurement: str) -> DetectorConfig:
 
 def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str = 'influent_volume',
         fixed_threshold: float | None = None, calibration_end: str = '2023-12-31',
-        target_flag_rate: float = 0.01, case_gap_days: int = 1, max_points: int | None = None) -> None:
+        target_flag_rate: float = 0.01, case_gap_days: int = 1, max_points: int | None = None,
+        progress: bool = False) -> None:
     config = config_for(config, measurement)
     config.validate()
     prepared, output = prepared.resolve(), output.resolve()
@@ -484,13 +502,22 @@ def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str =
         raise ValueError('Prepared inputs and output must be separate directories')
     if output.exists() and any(output.iterdir()):
         raise ValueError('Output directory must be empty; choose a new path')
-    scored = score_all(load_selected(prepared, measurement, max_points), config)
+    bar = Progress(enabled=progress)
+
+    def step(index: int, within: float, detail: str) -> None:
+        bar.step('Detecting', index, 4, within, detail)
+
+    frame = load_selected(prepared, measurement, max_points,
+                          on_file=lambda done, total: step(0, done / total, f'reading files {done}/{total}'))
+    scored = score_all(frame, config, on_series=lambda done, total: step(1, done / total, f'scoring series {done:,}/{total:,}'))
+    step(2, 0, 'setting thresholds and building cases')
     if fixed_threshold is not None:
         thresholds = Thresholds(fixed_threshold, fixed_threshold, 'fixed')
     else:
         thresholds = calibrate_thresholds(scored, calibration_end, target_flag_rate)
     scored = apply_thresholds(scored, thresholds)
     scored['case_id'], cases = build_cases(scored, case_gap_days)
+    step(3, 0, 'writing outputs')
     output.mkdir(parents=True, exist_ok=True)
     scored.to_csv(output / 'history_scores.csv.gz', index=False, compression='gzip')
     cases.to_csv(output / 'cases.csv.gz', index=False, compression='gzip')
@@ -523,6 +550,7 @@ def run(prepared: Path, output: Path, config: DetectorConfig, measurement: str =
                         'Dates and input availability require confirmation by the data provider.'],
     }
     (output / 'run_info.json').write_text(json.dumps(run_info, indent=2), encoding='utf-8')
+    bar.close(f'Detection finished: {len(scored):,} readings, {len(cases):,} cases in {duration(bar.elapsed())}')
     print('Historical scoring complete. Outputs are private and provisional.')
 
 
@@ -554,7 +582,7 @@ def main() -> None:
     config = DetectorConfig(args.window_days, args.minimum_history, args.scale_floor_fraction,
                             args.clip_limit, args.stuck_days, not args.no_rules)
     run(args.prepared, args.output, config, args.measurement, args.threshold,
-        args.calibration_end, args.target_flag_rate, args.case_gap_days, args.max_points)
+        args.calibration_end, args.target_flag_rate, args.case_gap_days, args.max_points, progress=True)
 
 
 if __name__ == '__main__':

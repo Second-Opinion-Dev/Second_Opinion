@@ -32,6 +32,13 @@ def fixture(days=40, start='2022-01-01', point='fixture-point'):
 
 
 class FeaturesTest(unittest.TestCase):
+    def test_feature_building_reports_each_series_and_keeps_the_result(self):
+        frame = pd.concat([fixture(), fixture(point='another-point')], ignore_index=True)
+        seen = []
+        followed = add_features(frame, on_series=lambda done, total: seen.append((done, total)))
+        self.assertEqual(seen, [(1, 2), (2, 2)])
+        pd.testing.assert_frame_equal(followed, add_features(frame))
+
     def test_causal_features_ignore_future_and_other_points(self):
         original = fixture()
         first = add_features(original)

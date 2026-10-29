@@ -2,16 +2,18 @@
 from contextlib import closing
 import csv
 import gzip
+import io
 import json
 from pathlib import Path
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
-from dashboard_index import dashboard_server, is_current
+from dashboard_index import dashboard_server, is_current, progress_line, watch
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'src' / 'dashboard_index.py'
 server = dashboard_server()
@@ -73,7 +75,7 @@ class DashboardIndexTest(unittest.TestCase):
     def test_fails_when_a_required_measurement_is_not_indexed(self):
         result = self.build('oxygen', 'nitrate')
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('nitrate', result.stderr)
+        self.assertIn('Not indexed: nitrate', result.stdout)
         self.assertFalse(is_current(self.results, self.index, ['oxygen', 'nitrate']))
 
     def test_flag_that_disagrees_with_the_threshold_fails_the_build(self):
@@ -82,6 +84,44 @@ class DashboardIndexTest(unittest.TestCase):
         result = self.build('oxygen')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('threshold', result.stdout)
+
+    def test_progress_goes_to_stderr_and_ends_with_the_finished_state(self):
+        result = self.build('oxygen')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # Not a terminal here, so plain lines and no redraws.
+        self.assertNotIn('\r', result.stderr)
+        self.assertIn('Index build finished: 2 rows, 1/6 measurements', result.stderr.strip().splitlines()[-1])
+        self.assertNotIn('Index build', result.stdout)
+
+
+class ProgressLineTest(unittest.TestCase):
+    def state(self, **changes):
+        return {'phase': 'indexing', 'message': '', 'processed': 40, 'skipped': 2, 'total': 100, 'metrics': ['oxygen'],
+                **changes}
+
+    def test_bar_shows_share_rows_measurements_and_time_left(self):
+        line = progress_line(self.state(), 60, 6)
+        self.assertIn(' 42.0%  42/100 rows, 1/6 measurements, 1m 00s elapsed, ~1m 22s left', line)
+        bar = line[line.index('[') + 1:line.index(']')]
+        self.assertEqual((bar.count('#'), len(bar)), (int(len(bar) * 0.42), len(bar)))
+        self.assertLessEqual(len(progress_line(self.state(), 60, 6, width=40)), 40)
+
+    def test_unknown_total_and_later_phases(self):
+        self.assertNotIn('%', progress_line(self.state(total=None), 5, 6))
+        self.assertTrue(progress_line(self.state(message='building_indexes'), 5, 6).startswith('Building lookup indexes'))
+        self.assertTrue(progress_line(self.state(phase='ready', message='building_indexes'), 5, 6)
+                        .startswith('Index build finished: 42 rows'))
+        self.assertTrue(progress_line(self.state(phase='error'), 5, 6).startswith('Index build stopped'))
+
+    def test_terminal_redraws_one_line_and_other_output_gets_whole_lines(self):
+        for interactive in (True, False):
+            stream, stop = io.StringIO(), threading.Event()
+            stop.set()
+            watch(self.state(phase='ready'), threading.Lock(), stream, interactive, stop, 6)
+            text = stream.getvalue()
+            self.assertEqual(text.startswith('\r'), interactive)
+            self.assertTrue(text.endswith('\n'))
+            self.assertEqual(text.count('\n'), 1)
 
 
 if __name__ == '__main__':

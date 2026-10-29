@@ -19,10 +19,16 @@ import json
 import math
 from multiprocessing import Pool
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 from scipy.signal import lfilter
+
+SRC = Path(__file__).resolve().parents[1]
+if str(SRC) not in sys.path:  # run as a script from this folder
+    sys.path.insert(0, str(SRC))
+from progress_bar import Progress, duration  # noqa: E402
 
 GENERATOR_VERSION = 1
 TABLES = ('Installations', 'MeasurementPoints', 'MeasurementValues')
@@ -698,7 +704,7 @@ def write_installations(cfg, plants, out):
 
 
 def run(output, seed=20260101, plants=335, target_rows=25_000_000, start='2021-01-01', end='2025-12-31',
-        anomaly_rate=0.105, quality_scale=1.0, workers=1, log=print):
+        anomaly_rate=0.105, quality_scale=1.0, workers=1, log=print, progress=False):
     output = Path(output)
     if output.exists() and any(output.iterdir()):
         raise ValueError('Output directory must be empty; select a new directory')
@@ -716,16 +722,27 @@ def run(output, seed=20260101, plants=335, target_rows=25_000_000, start='2021-0
     log(f'Planned {int(counts.sum())} points across {plants} plants (filler multiplier {multiplier:.3f})')
     installations = write_installations(cfg, roster, output)
     jobs = [(cfg, p, counts[p.index]) for p in roster]
-    results = []
+    results, rows = [], 0
+    bar = Progress() if progress else None
+
+    def written(result):
+        nonlocal rows
+        results.append(result)
+        rows += result['totals'].get('rows', 0)
+        if bar:
+            bar.bar('Simulating', len(results) / plants, f'{len(results)}/{plants} plants, {rows:,} rows')
+        elif workers > 1 and len(results) % 20 == 0:
+            log(f'{len(results)}/{plants} plants written')
+
     if workers > 1:
         with Pool(workers) as pool:
             for result in pool.imap_unordered(generate_plant, jobs):
-                results.append(result)
-                if len(results) % 20 == 0:
-                    log(f'{len(results)}/{plants} plants written')
+                written(result)
     else:
         for job in jobs:
-            results.append(generate_plant(job))
+            written(generate_plant(job))
+    if bar:
+        bar.close(f'Simulated {plants} plants, {rows:,} rows in {duration(bar.elapsed())}')
     return finish(cfg, results, installations, multiplier, output)
 
 
@@ -780,7 +797,7 @@ def main():
     parser.add_argument('--workers', type=int, default=1)
     args = parser.parse_args()
     manifest = run(args.output, args.seed, args.plants, args.target_rows, args.start, args.end,
-                   args.anomaly_rate, args.quality_scale, args.workers)
+                   args.anomaly_rate, args.quality_scale, args.workers, progress=True)
     print(json.dumps({k: v for k, v in manifest.items() if k not in ('rows_by_kind',)}, indent=2))
 
 

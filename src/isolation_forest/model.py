@@ -8,12 +8,19 @@ import json
 import math
 from pathlib import Path
 import platform
+import sys
+from typing import Callable
 
 import joblib
 import numpy as np
 import pandas as pd
 import sklearn
 from sklearn.ensemble import IsolationForest
+
+SRC = Path(__file__).resolve().parents[1]
+if str(SRC) not in sys.path:  # run as a script from this folder
+    sys.path.insert(0, str(SRC))
+from progress_bar import Progress, duration  # noqa: E402
 
 
 SERIES = ['InstallationCodeOrigin', 'MeasurementPointID', 'SubProcessCodeOrigin',
@@ -50,13 +57,13 @@ class Config:
             raise ValueError('Budget, trees and max_samples must be positive')
 
 
-def add_features(frame: pd.DataFrame) -> pd.DataFrame:
+def add_features(frame: pd.DataFrame, on_series: Callable[[int, int], None] | None = None) -> pd.DataFrame:
     """Construct features with current and strictly prior data from one series.
 
     Input is output from the history detector. A previous day must have been
     scored; the prior mean deviation needs at least three scored, unambiguous
     days in [day-7, day). No feature depends on the detector's alert threshold.
-    Missingness is never filled with normal-looking values.
+    Missingness is never filled with normal-looking values. on_series(done, total) follows the series.
     """
     missing = set(REQUIRED) - set(frame.columns)
     if missing:
@@ -78,7 +85,10 @@ def add_features(frame: pd.DataFrame) -> pd.DataFrame:
         out[name] = np.nan
 
     # Per-series processing ensures no identifiers or neighbouring plants are model features.
-    for _, group in out.groupby(SERIES, sort=False, dropna=False):
+    groups = out.groupby(SERIES, sort=False, dropna=False)
+    for number, (_, group) in enumerate(groups, 1):
+        if on_series:
+            on_series(number, groups.ngroups)
         ordered = group.sort_values('_date', kind='stable', na_position='last')
         previous_date = ordered['_date'].shift()
         previous_value = ordered['parsed_value'].shift()
@@ -204,7 +214,7 @@ def validate_selection(frame: pd.DataFrame, info: dict) -> None:
             raise ValueError(f'History output mixes measurement definitions in {field}')
 
 
-def run(history_dir: Path, output: Path, config: Config) -> None:
+def run(history_dir: Path, output: Path, config: Config, progress: bool = False) -> None:
     config.validate()
     history_dir, output = history_dir.resolve(), output.resolve()
     if history_dir == output or history_dir in output.parents or output in history_dir.parents:
@@ -217,12 +227,19 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     info = json.loads(info_path.read_text(encoding='utf-8'))
     if info.get('status') not in ('provisional_unvalidated', 'smoke_run_partial'):
         raise ValueError('Unexpected history output status')
+    bar = Progress(enabled=progress)
+
+    def step(index: int, within: float, detail: str) -> None:
+        bar.step('Forest', index, 5, within, detail)
+
+    step(0, 0, 'reading history scores')
     source = pd.read_csv(input_path, dtype=str, keep_default_na=False)
     if len(source) != info.get('counts', {}).get('selected_rows'):
         raise ValueError('History output row count does not match its completion marker')
     validate_selection(source, info)
-    data = add_features(source)
+    data = add_features(source, on_series=lambda done, total: step(1, done / total, f'building features {done:,}/{total:,} series'))
     data['split'] = split_labels(data['_date'], config)
+    step(2, 0, 'fitting and scoring')
     model, threshold = fit_model(data, config)
     eligible = data['ai_status'].eq('eligible')
     data['ai_score'] = np.nan
@@ -230,6 +247,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     data['ai_flag'] = pd.Series(pd.NA, index=data.index, dtype='boolean')
     data.loc[eligible, 'ai_flag'] = data.loc[eligible, 'ai_score'].ge(threshold)
     # The baseline ranks rule hits (stuck, dropout, negative) first, then the robust score.
+    step(3, 0, 'daily budgets and evaluation')
     data['_rule_any'] = data[RULES].apply(lambda s: s.astype(str).str.lower().eq('true')).any(axis=1).astype(float)
     data['baseline_budget_selected'] = select_daily_budget(data, ['_rule_any', 'anomaly_score'], config.plant_daily_budget)
     data['ai_budget_selected'] = select_daily_budget(data, ['ai_score'], config.plant_daily_budget)
@@ -240,6 +258,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
     results = evaluate(data, config)
     versions = {'python': platform.python_version(), 'pandas': pd.__version__, 'numpy': np.__version__,
                 'scikit_learn': sklearn.__version__, 'joblib': joblib.__version__}
+    step(4, 0, 'writing outputs')
     output.mkdir(parents=True, exist_ok=True)
     bundle = {'model': model, 'threshold': threshold, 'config': asdict(config),
               'feature_order': FEATURES, 'versions': versions,
@@ -261,6 +280,7 @@ def run(history_dir: Path, output: Path, config: Config) -> None:
                             'Per-plant daily budget is an assumption; selection is descriptive, not safe suppression.',
                             'Saved models must be loaded only from trusted local sources.']}
     (output / 'run_info.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+    bar.close(f'Forest finished: {int(eligible.sum()):,} readings scored in {duration(bar.elapsed())}')
     print('Completed retrospective Isolation Forest scoring; outputs and aggregate results are local.')
 
 
@@ -277,7 +297,7 @@ def main():
     parser.add_argument('--seed', type=int, default=Config.seed)
     args = parser.parse_args()
     run(args.history_dir, args.output, Config(args.train_end, args.validation_end, args.test_end,
-        args.validation_flag_fraction, args.plant_daily_budget, args.seed))
+        args.validation_flag_fraction, args.plant_daily_budget, args.seed), progress=True)
 
 
 if __name__ == '__main__':

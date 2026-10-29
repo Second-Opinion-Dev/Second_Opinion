@@ -1,13 +1,18 @@
-from contextlib import closing
+from contextlib import closing, redirect_stderr, redirect_stdout
 import gzip
+import io
 from pathlib import Path
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 
 import pandas as pd
 
 from data_prep.tai_pipeline import run
+
+VERIFY = Path(__file__).resolve().parents[1] / 'src' / 'data_prep' / 'tai_verify.py'
 
 
 class PipelineTest(unittest.TestCase):
@@ -35,6 +40,30 @@ class PipelineTest(unittest.TestCase):
             self.assertTrue(clean.loc[3, 'flag_unknown_point'])
             group = pd.read_csv(out / 'same_date_groups.csv').iloc[0]
             self.assertEqual((group['rows'], group['distinct_records'], group['exact_duplicates']), (3, 2, 1))
+
+    def test_progress_line_leaves_the_output_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / 'raw'
+            for name, contents in (('Installations', 'Installation\nplant\n'), ('MeasurementPoints', 'MeasurementPointID\np1\n'),
+                                   ('MeasurementValues', 'InstallationCodeOrigin,MeasurementPointID,Date,Value,Unit\nplant,p1,2024-01-01,1,m3\n')):
+                (raw / name).mkdir(parents=True)
+                with gzip.open(raw / name / 'one.csv.gz', 'wt', encoding='utf-8') as stream:
+                    stream.write(contents)
+            shown, printed = io.StringIO(), io.StringIO()
+            run(raw, root / 'plain', None, 10)
+            with redirect_stderr(shown), redirect_stdout(printed):
+                run(raw, root / 'shown', None, 10, progress=True)
+            self.assertEqual((root / 'plain' / 'summary.json').read_text(), (root / 'shown' / 'summary.json').read_text())
+            # Not a terminal here: no redraws, only the closing line of a run this short.
+            self.assertNotIn('\r', shown.getvalue())
+            self.assertTrue(shown.getvalue().strip().splitlines()[-1].startswith('Prepared 3 files, 3 rows in '))
+            self.assertIn('MeasurementValues: 3 files processed', printed.getvalue())
+            # Verification reports its own progress on stderr; its result stays on stdout.
+            verified = subprocess.run([sys.executable, '-B', str(VERIFY), str(root / 'shown')], capture_output=True, text=True)
+            self.assertEqual(verified.returncode, 0, verified.stdout + verified.stderr)
+            self.assertIn('Verified 3 files and 3 retained rows', verified.stdout)
+            self.assertTrue(verified.stderr.strip().splitlines()[-1].startswith('Checked 3 files, 3 rows in '))
 
     def test_workers_give_the_same_output_as_one_process(self):
         with tempfile.TemporaryDirectory() as directory:
