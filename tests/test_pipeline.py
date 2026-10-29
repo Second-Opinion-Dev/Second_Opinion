@@ -5,7 +5,7 @@ import tempfile
 import time
 import unittest
 
-from pipeline import Stage, build_stages, execute
+from pipeline import Stage, build_stages, execute, fingerprint
 
 # A stub stage: 'fail' exits with an error, 'sleepX' waits X seconds; it records its start and end times.
 STUB = '''import sys, time
@@ -117,6 +117,13 @@ class DriverTest(unittest.TestCase):
             self.assertTrue(all(need in names[:position] for need in stage.needs))
             self.assertTrue(stage.script.is_file())
         self.assertIn('--max-points', stages[2].args)
+
+    def test_prepare_workers_change_the_command_but_not_the_fingerprint(self):
+        one = build_stages(self.root, ['oxygen'], None, False, 0.01, 3)[0]
+        four = build_stages(self.root, ['oxygen'], None, False, 0.01, 3, workers=4)[0]
+        self.assertEqual(one.run_args, ['--workers', '1'])
+        self.assertEqual(four.run_args, ['--workers', '4'])
+        self.assertEqual(fingerprint(one, {}), fingerprint(four, {}))
 
 
 if __name__ == '__main__':
