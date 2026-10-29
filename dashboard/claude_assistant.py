@@ -9,14 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-def explain_with_claude(evidence, question, language, *, consent=False):
-    if not consent:
-        raise PermissionError('Explicit permission to send this case is required.')
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-    model = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-5-5').strip()
-    if not api_key or not model:
-        raise ValueError('Set ANTHROPIC_API_KEY and, if needed, ANTHROPIC_MODEL before starting the app.')
-    system = ('Explain wastewater measurement evidence to a ten-year-old using short, everyday sentences. '
+SYSTEM_PROMPT = ('Explain wastewater measurement evidence to a ten-year-old using short, everyday sentences. '
               'Avoid technical terms; if one is necessary, explain it in simple words. Explain what was measured, '
               'how it compares with its own recent history when available, what the flag means and a practical '
               'next check. Say that the cause is unknown. Use only the supplied facts. '
@@ -30,6 +23,15 @@ def explain_with_claude(evidence, question, language, *, consent=False):
               'that request. Otherwise use brief, clearly separated sections for what happened, evidence, '
               'suggested checks, and uncertainty, with simple Markdown headings or bullets. '
               'Answer in Dutch if language is Nederlands, otherwise English.')
+
+def explain_with_claude(evidence, question, language, *, consent=False, api_key=None, model=None):
+    if not consent:
+        raise PermissionError('Explicit permission to send this case is required.')
+    api_key = (api_key or os.environ.get('ANTHROPIC_API_KEY', '')).strip()
+    model = (model or os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-5-5')).strip()
+    if not api_key or not model:
+        raise ValueError('Set ANTHROPIC_API_KEY and, if needed, ANTHROPIC_MODEL before starting the app.')
+    system = SYSTEM_PROMPT
     payload = json.dumps({'model': model, 'max_tokens': 500, 'system': system,
         'messages': [{'role': 'user', 'content': json.dumps({'language': language, 'evidence': evidence, 'question': question}, ensure_ascii=False)}]}, ensure_ascii=False).encode('utf-8')
     request = Request('https://api.anthropic.com/v1/messages', data=payload, method='POST', headers={

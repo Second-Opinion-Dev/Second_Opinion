@@ -62,4 +62,7 @@ body.dark .field input#plantSearch {
   background-color: #000;
   color: #fff;
   color-scheme: dark;
-}
+}.ai-settings { display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:16px; margin:18px 0 8px; }
+.ai-settings .field { min-width:0; }
+.ai-settings input,.ai-settings select { width:100%; }
+@media(max-width:800px) { .ai-settings { grid-template-columns:1fr; } }
