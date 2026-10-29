@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-9fd8ea?style=flat-square&labelColor=04090d">
+  <img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="scikit-learn Isolation Forest" src="https://img.shields.io/badge/AI%20layer-Isolation%20Forest-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="Local web dashboard" src="https://img.shields.io/badge/dashboard-local%20web-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="Built for TAI / Z-info" src="https://img.shields.io/badge/built%20for-TAI%20%2F%20Z--info-9fd8ea?style=flat-square&labelColor=04090d">
@@ -175,6 +175,7 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 ```text
 src/pipeline.py              Pipeline driver
 src/dashboard_index.py       Prebuilds the dashboard index (last pipeline stage)
+src/progress_bar.py          Shared terminal progress line used by the pipeline and its scripts
 src/data_prep/               Preparation, verification and data reports
 src/history_detector/        History detector and artificial-fault evaluation
 src/isolation_forest/        Experimental Isolation Forest

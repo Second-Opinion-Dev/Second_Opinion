@@ -5,6 +5,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 from contextlib import closing
+from claude_assistant import explain_with_claude
 import server
 
 
@@ -52,7 +53,7 @@ class IndexTest(unittest.TestCase):
             server.build_index(self.root,db_path=self.db)
             self.assertEqual(server.state['phase'],'error')
     def test_claude_requires_consent(self):
-        with self.assertRaises(PermissionError): server.explain_with_claude({},'', 'English', consent=False)
+        with self.assertRaises(PermissionError): explain_with_claude({},'', 'English', consent=False)
     def test_dashboard_port_is_exclusive(self):
         first=server.LocalServer(('127.0.0.1',0),server.Handler)
         try:

@@ -4,8 +4,6 @@ import argparse
 from collections import Counter, deque
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import nullcontext
-import gzip
-import hashlib
 import json
 from pathlib import Path
 import sqlite3

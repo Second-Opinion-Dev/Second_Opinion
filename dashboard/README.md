@@ -4,7 +4,7 @@ A local browser-based workspace for exploring wastewater readings and reviewing 
 
 ## What you need
 
-- Python 3.10 or newer. The server uses only Python's standard library; Node.js is needed only for the JavaScript tests.
+- Python 3.11, the version in the repository's `.python-version`. The server uses only Python's standard library; Node.js is needed only for the JavaScript tests.
 - Precomputed pipeline results, by default `data/tai/pipeline/` from a full `python src/pipeline.py` run. Partner data and results are not included in Git. The dashboard does not train or run models itself.
 - Optionally, the extracted Z-info export in `data/tai/extracted/` for a fuller installation catalogue. A [simulated export](../docs/simulation/README.md) works too.
 - Optionally, an Anthropic API key for Claude. The dashboard works without it.

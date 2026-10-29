@@ -1,12 +1,11 @@
 """Local-only Second Opinion web server with a streaming SQLite results index."""
 from __future__ import annotations
-import csv, gzip, hashlib, json, math, os, socket, sqlite3, sys, threading, time
+import csv, gzip, hashlib, json, math, os, socket, sqlite3, sys, threading
 from datetime import date as calendar_date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from claude_assistant import explain_with_claude
 from ai_assistant import explain
 
 ROOT = Path(__file__).resolve().parents[1]
