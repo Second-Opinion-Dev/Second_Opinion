@@ -78,6 +78,26 @@ class IndexTest(unittest.TestCase):
         finally:
             http.shutdown(); http.server_close(); thread.join()
 
+    def test_all_metrics_include_only_available_groups_and_order_flags_by_date(self):
+        server.build_index(self.root,db_path=self.db)
+        with closing(sqlite3.connect(self.db)) as db:
+            row=db.execute('SELECT * FROM readings WHERE flag=1').fetchone()
+            second=list(row); second[0]='second'; second[1]='ammonium'; second[4]='2025-01-03'; second[7]=0.1
+            db.execute('INSERT INTO readings VALUES ('+','.join('?' for _ in second)+')',second)
+            db.commit()
+        server.state['metrics']=['oxygen','ammonium']
+        http=ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
+        thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
+        try:
+            with patch.object(server,'DB',self.db):
+                base=f'http://127.0.0.1:{http.server_port}'
+                with urlopen(base+'/api/readings?'+urlencode({'plant':'test-plant','metric':'all','flags':'1'})) as r: result=json.load(r)
+                self.assertEqual([row['metric'] for row in result['rows']],['ammonium','oxygen'])
+                with urlopen(base+'/api/points?'+urlencode({'plant':'test-plant','metric':'all'})) as r: points=json.load(r)
+                self.assertEqual(points['points'],['test-point'])
+        finally:
+            http.shutdown();http.server_close();thread.join()
+
     def test_readings_and_queue_paginate_without_losing_records(self):
         self.rows=[dict(self.rows[0], source_row=str(i), parsed_value=str(i)) for i in range(103)]
         self.write()

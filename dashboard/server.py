@@ -221,11 +221,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'plants':plants,'metrics':metrics,'bounds':bounds}); db.close(); return
             if u.path=='/api/readings':
                 plant=q.get('plant',[''])[0]; metric=q.get('metric',[''])[0]; start=q.get('start',['0000-01-01'])[0]; end=q.get('end',['9999-12-31'])[0]; point=q.get('point',[''])[0]
-                if metric not in state['metrics'] or not plant: self.send_json({'error':'Select plant and available metric'},400); return
+                if (metric != 'all' and metric not in state['metrics']) or not plant: self.send_json({'error':'Select plant and available metric'},400); return
                 flags_only=q.get('flags',['0'])[0]=='1'
-                where=' WHERE plant=? AND metric=? AND date BETWEEN ? AND ?'+(' AND point=?' if point else '')
-                params=(plant,metric,start,end)+( (point,) if point else () )
-                sql='SELECT * FROM readings'+where+(' AND flag=1 ORDER BY score DESC, date DESC, id' if flags_only else ' ORDER BY date DESC, point, id')+' LIMIT ?'
+                metrics=tuple(state['metrics']) if metric=='all' else (metric,)
+                where=' WHERE plant=? AND metric IN ('+','.join('?' for _ in metrics)+') AND date BETWEEN ? AND ?'+(' AND point=?' if point else '')
+                params=(plant,)+metrics+(start,end)+( (point,) if point else () )
+                sql='SELECT * FROM readings'+where+(' AND flag=1 ORDER BY score DESC, date DESC, id' if flags_only and metric!='all' else (' AND flag=1' if flags_only else '')+' ORDER BY date DESC, point, id')+' LIMIT ?'
                 try: offset=max(0,min(int(q.get('offset',['0'])[0]),10000000))
                 except ValueError: offset=0
                 rows=db.execute(sql+' OFFSET ?',params+(PAGE_SIZE,offset)).fetchall()
@@ -233,8 +234,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'rows':[as_record(r) for r in rows],'counts':counts,'limit':PAGE_SIZE,'offset':offset}); db.close(); return
             if u.path=='/api/points':
                 metric=q.get('metric',[''])[0]; plant=q.get('plant',[''])[0]
-                if metric not in state['metrics']: self.send_json({'error':'Select an available metric'},400); return
-                points=[r[0] for r in db.execute('SELECT DISTINCT point FROM readings WHERE plant=? AND metric=? ORDER BY point',(plant,metric))]
+                if metric != 'all' and metric not in state['metrics']: self.send_json({'error':'Select an available metric'},400); return
+                metrics=tuple(state['metrics']) if metric=='all' else (metric,)
+                points=[r[0] for r in db.execute('SELECT DISTINCT point FROM readings WHERE plant=? AND metric IN ('+','.join('?' for _ in metrics)+') ORDER BY point',(plant,)+metrics)]
                 self.send_json({'points':points}); db.close(); return
             if u.path=='/api/case':
                 row=db.execute('SELECT * FROM readings WHERE id=? AND flag=1',(q.get('id',[''])[0],)).fetchone()

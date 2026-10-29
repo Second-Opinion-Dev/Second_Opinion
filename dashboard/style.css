@@ -13,3 +13,53 @@
 .answer ul { padding-left: 22px; margin: 4px 0 12px; }
 .answer li + li { margin-top: 5px; }
 .answer strong { font-weight: 700; }
+
+/* Filter controls are clearly identifiable and retain native keyboard behavior. */
+.filterbar { gap: 10px; align-items: end; flex-wrap: wrap; }
+.field { border-right: 0; padding: 0; min-width: 155px; }
+.field select, .field input { min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background-color: var(--bg); color: var(--ink); font-size: 13px; }
+.field select { cursor: pointer; }
+.field select option, .language-control option { background: var(--surface); color: var(--ink); }
+.field input[type="search"] { margin-bottom: 5px; }
+.filterbar .apply { min-height: 42px; margin-left: 0; }
+.language-control select { min-width: 145px; cursor: pointer; color: var(--ink); background: var(--surface); font-size: 12px; }
+
+/* Second Opinion website palette: navy, soft cyan and orange flags. */
+:root { --bg:#f1f6f8; --surface:#fff; --ink:#102c38; --muted:#526d78; --line:#cbdde3; --accent:#126278; --mint:#e0f1f5; --peach:#fff0e2; --lav:#e9eef7; --shadow:0 12px 38px rgba(4,25,37,.07); }
+body.dark { --bg:#04090d; --surface:#0a1a22; --ink:#e9eef0; --muted:#a9bdc4; --line:#29434d; --accent:#9fd8ea; --mint:#17333e; --peach:#493021; --lav:#263342; --shadow:0 12px 38px #0003; color-scheme:dark; }
+body { font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif; }
+body.dark { background:radial-gradient(ellipse 80% 50% at 80% -10%,#0b2a38,transparent 70%),var(--bg); background-attachment:fixed; }
+.headline h1,.connect h1,.assistant-card h2 { font-family:'Instrument Serif',Georgia,serif; }
+.headline h1 em,.connect h1 em,.assistant-card h2 em { color:var(--accent); }
+.brandmark,.assistant-icon { background:var(--mint); color:var(--accent); }
+.branddot,.spark,.wave { color:var(--accent); }
+.apply,.primary,.assistant-button { background:#126278; color:#fff; }
+.dark .apply,.dark .primary,.dark .assistant-button { background:#9fd8ea; color:#071c24; }
+.assistant-card,.dark .assistant-card { background:var(--mint); color:var(--ink); }
+.assistant-card p,.dark .assistant-card p,.assistant-badge { color:var(--muted); }
+.assistant-swirl { color:#9fd8ea30; }
+.badge.flag { background:#fff0e2; color:#874410; }
+.dark .badge.flag { background:#493021; color:#ffc78f; }
+.alert { background:#fff0e2; border-color:#eabf98; color:#713f1c; }
+.dark .alert { background:#493021; border-color:#a7754d; color:#ffd0a8; }
+.intro-art,.dark .intro-art { background:radial-gradient(circle,var(--mint) 0%,transparent 70%); }
+.art-center { background:var(--mint); color:var(--accent); }
+.art-orbit { border-color:var(--accent); opacity:.35; }
+.spinner { border-color:var(--line); border-top-color:var(--accent); }
+.field input#plantSearch { margin-bottom: 0; }
+
+/* Native controls and their popup lists follow the selected app theme. */
+body { color-scheme: light; }
+body.dark { color-scheme: dark; }
+body select, body select option, body select optgroup,
+body .field input#plantSearch {
+  background-color: #fff;
+  color: #000;
+  color-scheme: light;
+}
+body.dark select, body.dark select option, body.dark select optgroup,
+body.dark .field input#plantSearch {
+  background-color: #000;
+  color: #fff;
+  color-scheme: dark;
+}
