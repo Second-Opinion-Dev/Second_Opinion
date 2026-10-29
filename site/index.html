@@ -258,12 +258,13 @@ void main(){
   }
   var F=2,ly=scrollY,vel=0,lt=performance.now();
   function prog(){return scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight);}
+  // With reduced motion the water still drifts, but slowly, without the scroll-speed surge or title parallax.
   function tick(now){var dt=Math.min(.05,(now-lt)/1000);lt=now;vel=vel*.9+(scrollY-ly)*.1;ly=scrollY;
-    F+=(.35+Math.min(Math.abs(vel),30)*.05)*dt;var p=prog();
+    F+=(rm?.08:.35+Math.min(Math.abs(vel),30)*.05)*dt;var p=prog();
     pg.style.transform='scaleX('+p+')';
-    var y=Math.min(scrollY,900);t.style.transform='translate3d(0,'+(y*.2)+'px,0)';t.style.opacity=Math.max(0,1-y/700);
+    if(!rm){var y=Math.min(scrollY,900);t.style.transform='translate3d(0,'+(y*.2)+'px,0)';t.style.opacity=Math.max(0,1-y/700);}
     if(draw)draw(F,p);requestAnimationFrame(tick);}
-  if(rm){if(draw)draw(2,0);}else requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
