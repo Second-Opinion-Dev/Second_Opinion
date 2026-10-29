@@ -6,10 +6,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'dashboard'))
 from claude_assistant import explain_with_claude
 
+ROOT = Path(__file__).resolve().parents[1]
 WEB = Path(__file__).resolve().parent
 DATA = ROOT / 'data' / 'tai'
 DB = DATA / 'second_opinion_web_index.sqlite'
@@ -256,7 +255,9 @@ class Handler(BaseHTTPRequestHandler):
             if length > 16384: self.send_json({'error':'Request too large'},413); return
             body=json.loads(self.rfile.read(length) or b'{}')
             if self.path=='/api/connect':
-                root=Path(str(body.get('path',''))).expanduser()
+                root_text=str(body.get('path','')).strip()
+                if not root_text: self.send_json({'error':'Enter a results folder'},400); return
+                root=Path(root_text).expanduser()
                 if not root.is_absolute(): root=ROOT/root
                 if not root.is_dir(): self.send_json({'error':'Folder not found'},400); return
                 cat_text=str(body.get('catalog','')).strip(); cat_path=None

@@ -12,7 +12,7 @@ From the repository root, with a new or empty output directory:
 python src/simulation/simulate_tai.py --workers 14
 ```
 
-The default build has 335 plants, about 25 million measurement rows, 1,826 days (2021-01-01 to 2025-12-31) and takes roughly three minutes on 14 workers. The result is deterministic for a given seed and numpy version, regardless of the number of workers. Use `--plants`, `--target-rows`, `--start` and `--end` for smaller builds, `--seed` for a different draw, `--anomaly-rate` and `--quality-scale` to change how much is injected. The default output is `data/tai`, where the pipeline, the Streamlit dashboard and the web dashboard already look, so none of them needs configuring. The script refuses a non-empty output directory: move any real export out of `data/tai` first.
+The default build has 335 plants, about 25 million measurement rows, 1,826 days (2021-01-01 to 2025-12-31) and takes roughly three minutes on 14 workers. The result is deterministic for a given seed and numpy version, regardless of the number of workers. Use `--plants`, `--target-rows`, `--start` and `--end` for smaller builds, `--seed` for a different draw, `--anomaly-rate` and `--quality-scale` to change how much is injected. The default output is `data/tai`, where the pipeline and the dashboard already look, so neither needs configuring. The script refuses a non-empty output directory: move any real export out of `data/tai` first.
 
 `data/` is git-ignored, so the generated files stay local like every other output. The generator is small and deterministic, which makes it the thing to share.
 

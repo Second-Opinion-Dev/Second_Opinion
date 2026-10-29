@@ -23,6 +23,7 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
 python src/pipeline.py --plan
 python -B -m unittest discover -s tests -t . -v
 python -B -m unittest discover -s dashboard -p "test_*.py" -v
+node --test dashboard/test_assistant_ui.cjs
 ```
 
 ## Git

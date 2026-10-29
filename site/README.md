@@ -6,7 +6,7 @@ The public project site. It holds no measurement data or results.
 | --- | --- |
 | `index.html` | Landing page |
 | `pipeline/index.html` | Interactive walk-through of each pipeline stage, on seeded synthetic data (`assets/pipeline.js`) |
-| `docs/` (generated) | The guides, rendered from `docs/*.md`, `dashboard/README.md` and `web_dashboard/README.md` |
+| `docs/` (generated) | The guides, rendered from `docs/*.md` and `dashboard/README.md` |
 | `assets/` | Shared styles, scripts and icon; the README graphics from `docs/assets/` are copied in at build time |
 
 The markdown stays the single source for the documentation: edit it in `docs/` as before, and `build.py` renders it. Relative links between guides point to their site pages; links to code, tests or the README point to GitHub. To add a guide, add it to `GUIDES` in `build.py`.

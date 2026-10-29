@@ -33,7 +33,7 @@ h2 em{color:var(--acc)}
     <div class="st"><small>01 // PREPARE</small><h3>Retain</h3><p>Stream the Z-info export, keep every row with its source file and row, and flag quality issues.</p><code>tai_pipeline.py · tai_verify.py</code></div>
     <div class="st"><small>02 // DETECT</small><h3>Score</h3><p>Compare each reading with the prior 28 days of its own series and apply stuck, dropout and negative rules.</p><code>history_detector.py</code></div>
     <div class="st"><small>03 // ORGANISE</small><h3>Group</h3><p>Merge nearby flagged days into cases and rank them within each plant: rules, duration, peak score.</p><code>cases.csv.gz</code></div>
-    <div class="st"><small>04 // REVIEW</small><h3>Investigate</h3><p>Open a case with its value, baseline, rules and source context. The operator decides.</p><code>dashboard/app.py</code></div>
+    <div class="st"><small>04 // REVIEW</small><h3>Investigate</h3><p>Open a case with its value, baseline, rules and source context. The operator decides.</p><code>dashboard/server.py</code></div>
   </div>
   <div class="side">
     <div><small>In parallel</small>An Isolation Forest per measurement group offers an experimental second ranking.</div>

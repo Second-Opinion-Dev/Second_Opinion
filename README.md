@@ -5,7 +5,7 @@
 <p align="center">
   <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="scikit-learn Isolation Forest" src="https://img.shields.io/badge/AI%20layer-Isolation%20Forest-9fd8ea?style=flat-square&labelColor=04090d">
-  <img alt="Streamlit dashboard" src="https://img.shields.io/badge/dashboard-Streamlit-9fd8ea?style=flat-square&labelColor=04090d">
+  <img alt="Local web dashboard" src="https://img.shields.io/badge/dashboard-local%20web-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="Built for TAI / Z-info" src="https://img.shields.io/badge/built%20for-TAI%20%2F%20Z--info-9fd8ea?style=flat-square&labelColor=04090d">
   <img alt="Status: research prototype" src="https://img.shields.io/badge/status-research%20prototype-f0a35e?style=flat-square&labelColor=04090d">
 </p>
@@ -49,7 +49,7 @@ The data has no confirmed anomaly labels, so Second Opinion is built to be trans
 | **Detect** | Scores each reading against the prior 28 days of its own series using a rolling median and a floored MAD spread, with thresholds calibrated per series. Rules catch stuck sensors, dropouts to zero and negative values. | [`src/history_detector/`](src/history_detector/) |
 | **Group** | Merges nearby flagged days into cases and ranks them within each plant: rule hits first, then duration, then peak score. | [`src/history_detector/`](src/history_detector/) |
 | **Second view** | Fits one Isolation Forest per measurement group on six history-based features, trained chronologically (train ≤ 2023, validate 2024, hold out 2025). | [`src/isolation_forest/`](src/isolation_forest/) |
-| **Review** | A local Streamlit dashboard shows flagged readings, their history and the evidence, in Dutch or English. | [`dashboard/`](dashboard/) |
+| **Review** | A local web dashboard shows flagged readings, their history and the evidence, in Dutch or English, with an optional Claude explanation. | [`dashboard/`](dashboard/) |
 
 <p align="center">
   <img src="docs/assets/detector.png" alt="Illustration of the history detector on a synthetic series: rolling median, usual range and flagged spike, stuck and dropout periods" width="100%">
@@ -86,7 +86,7 @@ data/tai/extracted/
 
 `data/` is git-ignored. Measurement data, prepared files, scores and fitted models are derived from operational data, so keep them local and never commit them.
 
-No access to the export? [Generate a fully simulated one](docs/simulation/README.md) with the same schema and known, injected anomalies: `python src/simulation/simulate_tai.py`, which writes straight into `data/tai/` so the rest of the pipeline and both dashboards work unchanged.
+No access to the export? [Generate a fully simulated one](docs/simulation/README.md) with the same schema and known, injected anomalies: `python src/simulation/simulate_tai.py`, which writes straight into `data/tai/` so the rest of the pipeline and the dashboard work unchanged.
 
 ### 3. Run the pipeline
 
@@ -104,14 +104,17 @@ The driver fingerprints each stage's script, arguments and upstream stages in `d
 ### 4. Open the dashboard
 
 ```bash
-python -m streamlit run dashboard/app.py --server.address 127.0.0.1
+python dashboard/server.py
 ```
+
+Open http://127.0.0.1:8518 and click **Connect results**; it reads `data/tai/pipeline/` by default. See the [dashboard guide](dashboard/README.md) for other result folders and the optional Claude explanation.
 
 ### 5. Run the tests
 
 ```bash
 python -B -m unittest discover -s tests -t . -v
 python -B -m unittest discover -s dashboard -p "test_*.py" -v
+node --test dashboard/test_assistant_ui.cjs      # dashboard frontend, needs Node.js
 ```
 
 All tests use small artificial fixtures, never real measurements.
@@ -135,7 +138,7 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 | [History detector](docs/history_detector/README.md) | Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation |
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
 | [Simulated dataset](docs/simulation/README.md) | A generated stand-in for the export, with injected anomalies and an answer key |
-| [Dashboard](dashboard/README.md) | The operator prototype and the dry-weather exploration |
+| [Dashboard](dashboard/README.md) | The local review workspace, its results layout and the optional Claude explanation |
 | [Website](site/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
 
 ## Repository layout
@@ -146,7 +149,7 @@ src/data_prep/               Preparation, verification and data reports
 src/history_detector/        History detector and artificial-fault evaluation
 src/isolation_forest/        Experimental Isolation Forest
 src/simulation/              Simulated Z-info export generator
-dashboard/                   Streamlit operator prototype
+dashboard/                   Local web dashboard (Python server, JavaScript frontend)
 tests/                       Synthetic-fixture tests
 docs/                        Methodology, component guides and README graphics
 site/                        Project website (GitHub Pages)
