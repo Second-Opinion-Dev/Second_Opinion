@@ -26,9 +26,7 @@ body::after{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;opa
 .pg{position:fixed;top:0;left:0;height:2px;width:100%;background:var(--acc);transform-origin:0 50%;transform:scaleX(0);z-index:60}
 nav{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;padding:calc(20px + env(safe-area-inset-top,0px)) 5vw 20px;font:400 .72rem/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;mix-blend-mode:difference;color:#fff}
 nav div{display:flex;gap:26px}nav a{color:inherit;text-decoration:none;opacity:.8;white-space:nowrap}nav a:hover{opacity:1}
-@media(max-width:560px){nav>a:first-child{display:none}nav{justify-content:flex-end}nav div{gap:18px}}
-@media(max-width:1100px){nav .sec{display:none}}
-#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 5vw 5vh;position:relative}
+@media(max-width:560px){nav>a:first-child{display:none}nav{justify-content:flex-end}nav div{gap:18px}}#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 5vw 5vh;position:relative}
 #hero .top{position:absolute;top:18vh;left:5vw;font:400 .72rem/1.7 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 #hero h1{font-weight:600;text-transform:uppercase;font-size:clamp(3.2rem,14vw,13rem);line-height:.86;letter-spacing:-.045em}
 #hero h1 em{font:italic 400 1em/.86 var(--serif);text-transform:lowercase;letter-spacing:-.02em;color:var(--acc)}
@@ -81,7 +79,7 @@ pre .c{color:var(--mute)}
 </head>
 <body>
 <div class="flow"></div><div class="pg" id="pg"></div>
-<nav><a href="#hero">Second Opinion</a><div><div class="sec"><a href="#problem">Problem</a><a href="#solution">Solution</a><a href="#history">History</a><a href="#novelty">AI</a><a href="#evaluation">Evaluation</a><a href="#result">Dashboard</a><a href="#steps">Next</a><a href="#start">Get started</a></div><a href="pipeline/">Pipeline</a><a href="docs/">Docs</a><a href="https://github.com/SunilParameswaran/Second_Opinion">GitHub ↗</a></div></nav>
+<nav><a href="#hero">Second Opinion</a><div><a href="pipeline/">Pipeline</a><a href="docs/">Docs</a><a href="https://github.com/SunilParameswaran/Second_Opinion">GitHub ↗</a></div></nav>
 
 <header id="hero">
   <div class="top">Built for TAI / Z-info<br>Measurement validation for wastewater</div>
