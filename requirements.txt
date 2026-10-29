@@ -4,5 +4,3 @@ numpy
 pandas
 scikit-learn
 joblib
-plotly
-streamlit

@@ -1,6 +1,6 @@
 """Build the website into _site/: the static pages in site/ plus HTML pages rendered from the markdown guides.
 
-The markdown in docs/ (and the dashboard READMEs) stays the single source; this script only reads it.
+The markdown in docs/ (and the dashboard README) stays the single source; this script only reads it.
 Run from anywhere: python site/build.py [--out DIR]
 """
 
@@ -31,10 +31,8 @@ GUIDES = [
      'Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation'),
     ('docs/isolation_forest/README.md', 'isolation-forest', 'Isolation Forest',
      'Features, eligibility, chronological splits, thresholds and the budget comparison'),
-    ('web_dashboard/README.md', 'web-dashboard', 'Web dashboard',
-     'The browser-based review workspace with an optional Claude explanation'),
-    ('dashboard/README.md', 'dashboard', 'Streamlit dashboard',
-     'The operator prototype and the dry-weather exploration'),
+    ('dashboard/README.md', 'dashboard', 'Dashboard',
+     'The local review workspace with an optional Claude explanation'),
 ]
 PAGE_OF = {source: slug for source, slug, _, _ in GUIDES}
 

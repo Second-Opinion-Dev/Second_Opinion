@@ -13,7 +13,7 @@ def explain_with_claude(evidence, question, language, *, consent=False):
     if not consent:
         raise PermissionError('Explicit permission to send this case is required.')
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-    model = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6').strip()
+    model = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-5-5').strip()
     if not api_key or not model:
         raise ValueError('Set ANTHROPIC_API_KEY and, if needed, ANTHROPIC_MODEL before starting the app.')
     system = ('Explain wastewater measurement evidence to a ten-year-old using short, everyday sentences. '

@@ -768,7 +768,7 @@ def finish(cfg, results, installations, multiplier, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--output', type=Path, default=Path('data/tai'),
-                        help='New or empty directory; the tables go to <output>/extracted (default: where the pipeline and dashboards look)')
+                        help='New or empty directory; the tables go to <output>/extracted (default: where the pipeline and dashboard look)')
     parser.add_argument('--seed', type=int, default=20260101)
     parser.add_argument('--plants', type=int, default=335)
     parser.add_argument('--target-rows', type=int, default=25_000_000, help='Approximate rows in MeasurementValues')

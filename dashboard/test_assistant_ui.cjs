@@ -20,7 +20,7 @@ function makePage(fetchImpl) {
   }
   const document = {getElementById:element, createElement:node, createTextNode(text){const n=node('#text');n.textContent=text;return n}, querySelectorAll:()=>[], documentElement:{}, body:{classList:{add(){},toggle(){},contains(){return false}}}};
   const context = vm.createContext({document,localStorage:{getItem(){return null},setItem(){}},fetch:fetchImpl,URLSearchParams,console,setTimeout});
-  vm.runInContext(fs.readFileSync('web_dashboard/app.js','utf8'),context);
+  vm.runInContext(fs.readFileSync('dashboard/app.js','utf8'),context);
   vm.runInContext("current={case:{id:'fictional-case'}}",context);
   return {element,context};
 }
