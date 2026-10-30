@@ -11,7 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://sunilparameswaran.github.io/Second_Opinion/">Website</a> ·
+  <a href="https://second-opinion-dev.github.io/Second_Opinion/">Website</a> ·
+  <a href="#watch">Watch</a> ·
   <a href="#why">Why</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -29,6 +30,18 @@ It is built around measurement data from **TAI's Z-info platform**. The aim is t
 **This repository contains no TAI, Z-info or plant data.** Every example, illustration and figure in it is synthetic, and the whole pipeline can be run on a [fully simulated export](docs/simulation/README.md).
 
 Second Opinion supports the operator's judgement and does not replace it. A flag is a reason to look, not a diagnosis, a confirmed fault or proof that everything else is fine.
+
+## Watch
+
+<p align="center">
+  <a href="https://second-opinion-dev.github.io/Second_Opinion/watch/">
+    <img src="docs/assets/pitch_poster.jpg" alt="Watch the 84-second pitch video: what Second Opinion is and why it exists" width="80%">
+  </a>
+</p>
+
+<p align="center"><a href="https://second-opinion-dev.github.io/Second_Opinion/watch/"><b>Watch the 84-second pitch</b></a> (with sound) · <a href="docs/pitch/script.md">read the script</a> · <a href="docs/pitch/second_opinion_pitch.mp4">download the MP4</a></p>
+
+An 84-second explainer of the problem and the product, for people who have not seen it before. It uses synthetic illustrations only. It plays on the project website because GitHub's README does not reliably play video with sound.
 
 ## Why
 
@@ -59,7 +72,7 @@ The data has no confirmed anomaly labels, so Second Opinion is built to be trans
 
 The pipeline covers six exploratory measurement groups: influent volume, and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature. Each is a narrow metadata filter, not every reading of that type. Plants are never compared with each other, because they differ in geography, process and timing, and each has its own operator.
 
-See the [methodology](docs/methodology.md) for the full method, design choices and limitations, or [step through each stage interactively](https://sunilparameswaran.github.io/Second_Opinion/pipeline/) on synthetic data.
+See the [methodology](docs/methodology.md) for the full method, design choices and limitations, or [step through each stage interactively](https://second-opinion-dev.github.io/Second_Opinion/pipeline/) on synthetic data.
 
 ## Quick start
 
@@ -158,7 +171,7 @@ All tests use small artificial fixtures, never real measurements.
 
 ## Documentation
 
-The guides are also published on the [website](https://sunilparameswaran.github.io/Second_Opinion/docs/), rendered from the markdown below.
+The guides are also published on the [website](https://second-opinion-dev.github.io/Second_Opinion/docs/), rendered from the markdown below.
 
 | Guide | Covers |
 | --- | --- |
@@ -166,9 +179,10 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 | [Data preparation](docs/data_prep/README.md) | Input format, preparation outputs, verification and supplementary reports |
 | [History detector](docs/history_detector/README.md) | Measurement groups, scoring, rules, cases, options and the artificial-fault evaluation |
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
+| [Pitch video](docs/pitch/README.md) | The 84-second explainer video, its [script](docs/pitch/script.md) and the source that renders it |
 | [Simulated dataset](docs/simulation/README.md) | A generated stand-in for the export, with injected anomalies and an answer key |
 | [Dashboard](dashboard/README.md) | The local review workspace, its results layout and the optional Claude explanation |
-| [Website](docs/website/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
+| [Website](docs/website/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://second-opinion-dev.github.io/Second_Opinion/) |
 
 ## Repository layout
 
@@ -182,7 +196,7 @@ src/isolation_forest/        Experimental Isolation Forest
 src/simulation/              Simulated Z-info export generator
 dashboard/                   Local web dashboard (Python server, JavaScript frontend)
 tests/                       Synthetic-fixture tests
-docs/                        Methodology, component guides and README graphics
+docs/                        Methodology, component guides, README graphics and the pitch video
 docs/website/                Project website source (GitHub Pages)
 data/                        Local data and outputs (git-ignored)
 ```
