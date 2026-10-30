@@ -196,5 +196,5 @@ Second Opinion is a research prototype run on historical, day-level data. It is 
 Built by
 [Joshua Varghese Thomji](https://github.com/josh1221wa),
 [Sunil Parameswaran](https://github.com/SunilParameswaran),
-[S Smriti](https://github.com/smritis21) and
+[Smriti Sridhar](https://github.com/smritis21) and
 [Oindrilla Banerjee](https://github.com/oindrilla007).
