@@ -76,6 +76,15 @@ body.dark .field input#plantSearch {
 body.dark .field select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 .field input[type="date"]::-webkit-calendar-picker-indicator { margin-right:3px; cursor:pointer; }
 
+/* Flagged rows open on click; the open one stays highlighted. */
+tr.openable { cursor:pointer; }
+tr.openable:hover td { background:var(--mint); }
+tr.selected td { background:var(--mint); }
+tr.selected td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
+.table-button { font-size:11px; font-weight:700; letter-spacing:.02em; white-space:nowrap; padding:7px 12px; border:1px solid var(--line); border-radius:8px; color:var(--accent); background:transparent; }
+tr.openable:hover .table-button { border-color:var(--accent); }
+.table-button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:var(--surface); }
+
 /* Language: a compact NL | EN switch. */
 .lang-toggle { display:flex; align-items:center; gap:2px; }
 .lang-option { border:0; background:transparent; color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.06em; padding:6px 7px; border-radius:6px; }
