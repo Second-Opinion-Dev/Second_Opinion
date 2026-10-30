@@ -16,8 +16,8 @@ from mdit_py_plugins.anchors import anchors_plugin
 
 ROOT = Path(__file__).resolve().parents[2]
 SITE = ROOT / 'docs' / 'website'
-REPO = 'https://github.com/SunilParameswaran/Second_Opinion'
-PAGES = 'https://sunilparameswaran.github.io/Second_Opinion/'
+REPO = 'https://github.com/Second-Opinion-Dev/Second_Opinion'
+PAGES = 'https://second-opinion-dev.github.io/Second_Opinion/'
 # Files in docs/website/ that build the website but are not part of it.
 NOT_PUBLISHED = {'build.py', 'README.md', 'requirements.txt'}
 
