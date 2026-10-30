@@ -52,7 +52,7 @@ TEMPLATE = """<!DOCTYPE html>
 <link rel="stylesheet" href="{root}assets/site.css">
 </head>
 <body>
-<header class="top"><a class="brand" href="{root}">Second Opinion</a><nav><a href="{root}pipeline/">Pipeline</a><a class="on" href="{root}docs/">Docs</a><a href="{repo}">GitHub ↗</a></nav></header>
+<header class="top"><a class="brand" href="{root}">Second Opinion</a><nav><a href="{root}watch/">Watch</a><a href="{root}pipeline/">Pipeline</a><a class="on" href="{root}docs/">Docs</a><a href="{repo}">GitHub ↗</a></nav></header>
 <div class="docs">
   <aside><p class="lbl">Guides</p><ul>
 {sidebar}
@@ -129,6 +129,9 @@ def build(out: Path) -> None:
     # README graphics, so pages and link previews can use them.
     for image in (ROOT / 'docs' / 'assets').glob('*.png'):
         shutil.copy2(image, out / 'assets' / image.name)
+    # The pitch video and its poster, for the Watch page.
+    shutil.copy2(ROOT / 'docs' / 'assets' / 'pitch_poster.jpg', out / 'assets' / 'pitch_poster.jpg')
+    shutil.copy2(ROOT / 'docs' / 'pitch' / 'second_opinion_pitch.mp4', out / 'assets' / 'second_opinion_pitch.mp4')
 
     md = markdown()
     for source, slug, name, summary in GUIDES:

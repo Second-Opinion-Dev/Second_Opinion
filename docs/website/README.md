@@ -6,6 +6,7 @@ The public project site. It holds no measurement data or results.
 | --- | --- |
 | `index.html` | Landing page |
 | `pipeline/index.html` | Interactive walk-through of each pipeline stage, on seeded synthetic data (`assets/pipeline.js`) |
+| `watch/index.html` | The pitch video (`docs/pitch/`), copied into `assets/` at build time |
 | `docs/` (generated) | The guides, rendered from `docs/*.md` and `dashboard/README.md` |
 | `assets/` | Shared styles, scripts and icon; the README graphics from `docs/assets/` are copied in at build time |
 
