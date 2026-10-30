@@ -46,10 +46,10 @@ The dashboard reads a local SQLite index at `data/tai/second_opinion_web_index.s
 
 ## Views
 
-- **Overview and daily readings:** readings for one plant, measurement and period, with counts of flagged and not-assessed readings.
+- **Overview:** readings for one plant, measurement, measurement point and period, with counts of flagged and not-assessed readings. Changing any filter refreshes the readings straight away.
 - **Review queue:** each eligible forest-flagged reading, sorted by forest score, then date. A budget splits the visible cases into selected and deferred. Raw scores are never ranked across metrics, and budget selections are not persisted.
 - **Case evidence:** the reading, its stored historical median and model score, the previous 28 days of the same series and the model inputs.
-- **AI assistant:** an optional, explicitly triggered Claude explanation of the selected case.
+- **AI assistant:** an optional, explicitly triggered AI explanation of the selected case, shown below the case evidence. Choosing another tab in the sidebar closes the open case.
 
 ## Optional: enable Claude
 

@@ -35,16 +35,36 @@ test('permission error is shown beside the button and nothing is sent', async ()
   assert.equal(page.element('askStatus').hidden,false);
 });
 
-test('filter submission accepts a displayed plant label and preserves its selected point', async () => {
+test('changing either date refreshes the readings with that date and the selected point', async () => {
   const requests=[];
-  const page=makePage(async url=>{requests.push(url);return {ok:true,json:async()=>url.startsWith('/api/points')?{points:['point-1']}:{rows:[],counts:{total:0,flagged:0,assessed:0,unassessed:0}}}});
+  const page=makePage(async url=>{requests.push(url);return {ok:true,json:async()=>({rows:[],counts:{total:0,flagged:0,assessed:0,unassessed:0}})}});
   vm.runInContext("catalog={plants:[{code:'NL.09.ZDR_',name:'RWZI Druten'}],metrics:[]}",page.context);
-  page.element('plantSearch').value='RWZI Druten (NL.09.ZDR_)';
   page.element('plant').value='NL.09.ZDR_';
   page.element('metric').value='ammonium';
   page.element('point').value='point-1';
-  await page.element('filters').onsubmit({preventDefault(){}});
-  assert.ok(requests.some(url=>url.includes('/api/readings?')&&url.includes('point=point-1')));
+  page.element('start').value='2024-01-01';
+  page.element('end').value='2024-12-31';
+  await page.element('start').onchange();
+  let query=new URLSearchParams(requests.at(-1).split('?')[1]);
+  assert.equal(query.get('start'),'2024-01-01');assert.equal(query.get('point'),'point-1');
+  page.element('end').value='2024-06-30';
+  await page.element('end').onchange();
+  query=new URLSearchParams(requests.at(-1).split('?')[1]);
+  assert.equal(query.get('end'),'2024-06-30');
+  const sent=requests.length;
+  page.element('end').value='';
+  await page.element('end').onchange();
+  assert.equal(requests.length,sent);  // a cleared date does not refresh
+});
+
+test('choosing a navigation tab closes an open reading', () => {
+  const page=makePage(async()=>({ok:true,json:async()=>({rows:[],counts:{}})}));
+  page.element('casePanel').hidden=false;
+  assert.ok(vm.runInContext("current!==null",page.context));
+  vm.runInContext("setPage('queue')",page.context);
+  assert.equal(page.element('casePanel').hidden,true);
+  assert.equal(vm.runInContext("current",page.context),null);
+  assert.equal(vm.runInContext("page",page.context),'queue');
 });
 
 test('assistant formatting is readable and treats HTML as text', async () => {
@@ -185,6 +205,19 @@ test('arrow keys and Enter choose a plant, and Escape closes the list without ch
   assert.equal(box.value,'Second plant (P2)');
   await new Promise(resolve=>setTimeout(resolve,0));
   assert.ok(requests.some(url=>url.startsWith('/api/points')));
+});
+
+test('Enter on a typed search chooses the first match', async () => {
+  const requests=[];
+  const page=makePage(async url=>{requests.push(url);return {ok:true,json:async()=>({points:[],rows:[],counts:{}})}});
+  vm.runInContext(plants,page.context);
+  const box=page.element('plantSearch');
+  fire(box,'focus');
+  box.value='third'; fire(box,'input');
+  fire(box,'keydown',{key:'Enter'});
+  assert.equal(page.element('plant').value,'P3');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(requests.some(url=>url.startsWith('/api/readings')));
 });
 
 test('clicking a plant in the list chooses it', () => {
