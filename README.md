@@ -39,9 +39,9 @@ Second Opinion supports the operator's judgement and does not replace it. A flag
   </a>
 </p>
 
-<p align="center"><a href="https://second-opinion-dev.github.io/Second_Opinion/watch/"><b>Watch the 84-second pitch</b></a> (with sound) · <a href="docs/pitch/script.md">read the script</a> · <a href="docs/pitch/second_opinion_pitch.mp4">download the MP4</a></p>
+<p align="center"><a href="https://second-opinion-dev.github.io/Second_Opinion/watch/"><b>Watch the 84-second pitch</b></a></p>
 
-An 84-second explainer of the problem and the product, for people who have not seen it before. It uses synthetic illustrations only. It plays on the project website because GitHub's README does not reliably play video with sound.
+An 84-second explainer of the problem and the product, for people who have not seen it before. It uses synthetic illustrations only.
 
 ## Why
 
