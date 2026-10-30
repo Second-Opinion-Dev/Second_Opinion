@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://sunilparameswaran.github.io/Second_Opinion/">Website</a> ·
+  <a href="https://second-opinion-dev.github.io/Second_Opinion/">Website</a> ·
   <a href="#why">Why</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -59,7 +59,7 @@ The data has no confirmed anomaly labels, so Second Opinion is built to be trans
 
 The pipeline covers six exploratory measurement groups: influent volume, and activated-sludge oxygen, ammonium, nitrate, suspended solids and temperature. Each is a narrow metadata filter, not every reading of that type. Plants are never compared with each other, because they differ in geography, process and timing, and each has its own operator.
 
-See the [methodology](docs/methodology.md) for the full method, design choices and limitations, or [step through each stage interactively](https://sunilparameswaran.github.io/Second_Opinion/pipeline/) on synthetic data.
+See the [methodology](docs/methodology.md) for the full method, design choices and limitations, or [step through each stage interactively](https://second-opinion-dev.github.io/Second_Opinion/pipeline/) on synthetic data.
 
 ## Quick start
 
@@ -158,7 +158,7 @@ All tests use small artificial fixtures, never real measurements.
 
 ## Documentation
 
-The guides are also published on the [website](https://sunilparameswaran.github.io/Second_Opinion/docs/), rendered from the markdown below.
+The guides are also published on the [website](https://second-opinion-dev.github.io/Second_Opinion/docs/), rendered from the markdown below.
 
 | Guide | Covers |
 | --- | --- |
@@ -168,7 +168,7 @@ The guides are also published on the [website](https://sunilparameswaran.github.
 | [Isolation Forest](docs/isolation_forest/README.md) | Features, eligibility, chronological splits, thresholds and the budget comparison |
 | [Simulated dataset](docs/simulation/README.md) | A generated stand-in for the export, with injected anomalies and an answer key |
 | [Dashboard](dashboard/README.md) | The local review workspace, its results layout and the optional Claude explanation |
-| [Website](docs/website/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://sunilparameswaran.github.io/Second_Opinion/) |
+| [Website](docs/website/) | The public site: landing page, interactive pipeline walk-through and these guides, published to [GitHub Pages](https://second-opinion-dev.github.io/Second_Opinion/) |
 
 ## Repository layout
 
